@@ -1,26 +1,206 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+  /* Surfaces & text */
+  --surface: oklch(98.5% 0.002 250);
+  --ink: oklch(21% 0.012 260);
+  --muted: oklch(53% 0.012 260);
+  --line: oklch(91% 0.005 260);
+  --panel: oklch(100% 0 0 / 0.94);
+  --panel-solid: oklch(100% 0 0);
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  /* Semantic */
+  --accent: oklch(57% 0.22 263);
+  --accent-hover: oklch(51% 0.22 263);
+  --accent-ink: oklch(99% 0 0);
+  --answer: oklch(62% 0.23 352);
+  --great: oklch(62% 0.16 152);
+  --good: oklch(72% 0.16 72);
+  --poor: oklch(60% 0.2 27);
+
+  /* Map */
+  --map-ocean: oklch(96.2% 0.008 245);
+  --map-land: oklch(89.5% 0.006 255);
+  --map-land-muted: oklch(93% 0.005 255);
+  --map-border: oklch(99.5% 0 0);
+  --map-river: oklch(68% 0.1 240);
+
+  /* Depth */
+  --shadow-panel: 0 1px 2px oklch(0% 0 0 / 0.05), 0 12px 32px -12px oklch(25% 0.02 260 / 0.22);
+  --shadow-pop: 0 1px 2px oklch(0% 0 0 / 0.08), 0 24px 48px -16px oklch(25% 0.02 260 / 0.3);
+
+  /* Motion */
+  --duration-fast: 150ms;
+  --duration-normal: 300ms;
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --surface: oklch(16.5% 0.012 262);
+    --ink: oklch(96% 0.004 260);
+    --muted: oklch(70% 0.012 260);
+    --line: oklch(29% 0.014 262);
+    --panel: oklch(21% 0.014 262 / 0.92);
+    --panel-solid: oklch(21% 0.014 262);
+
+    --accent: oklch(68% 0.18 263);
+    --accent-hover: oklch(74% 0.16 263);
+    --accent-ink: oklch(16% 0.02 262);
+    --answer: oklch(72% 0.2 352);
+    --great: oklch(74% 0.16 152);
+    --good: oklch(80% 0.15 78);
+    --poor: oklch(70% 0.18 27);
+
+    --map-ocean: oklch(19.5% 0.014 262);
+    --map-land: oklch(30% 0.016 262);
+    --map-land-muted: oklch(24.5% 0.014 262);
+    --map-border: oklch(42% 0.02 262);
+    --map-river: oklch(58% 0.1 240);
+
+    --shadow-panel: 0 1px 2px oklch(0% 0 0 / 0.3), 0 12px 32px -12px oklch(0% 0 0 / 0.6);
+    --shadow-pop: 0 1px 2px oklch(0% 0 0 / 0.3), 0 24px 48px -16px oklch(0% 0 0 / 0.7);
   }
 }
 
+@theme inline {
+  --color-surface: var(--surface);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-panel: var(--panel);
+  --color-panel-solid: var(--panel-solid);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-ink: var(--accent-ink);
+  --color-answer: var(--answer);
+  --color-great: var(--great);
+  --color-good: var(--good);
+  --color-poor: var(--poor);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --shadow-panel: var(--shadow-panel);
+  --shadow-pop: var(--shadow-pop);
+}
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--surface);
+  color: var(--ink);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ---------- Floating panels ---------- */
+
+.panel {
+  /* Near-opaque instead of backdrop-filter: blurring the moving map each frame is costly. */
+  background: var(--panel);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-panel);
+}
+
+.enter-up {
+  animation: enter-up var(--duration-normal) var(--ease-out-expo) both;
+}
+
+@keyframes enter-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+/* ---------- Map ---------- */
+
+.map-svg {
+  touch-action: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.map-svg[data-interactive="true"] {
+  cursor: crosshair;
+}
+
+.map-svg:focus-visible {
+  outline-offset: -4px;
+}
+
+.map-past-area {
+  fill: var(--answer);
+  fill-opacity: 0.14;
+  stroke: var(--answer);
+  stroke-opacity: 0.4;
+  stroke-width: 1;
+}
+
+.map-answer-area {
+  fill: var(--answer);
+  fill-opacity: 0.32;
+  stroke: var(--answer);
+  stroke-width: 1.5;
+  animation: fade-in var(--duration-normal) ease-out both;
+}
+
+/* Markers live inside the zoomed group: counter-scale so they keep a constant size. */
+.map-marker {
+  scale: calc(1 / var(--k, 1));
+}
+
+.map-marker-body {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+}
+
+.map-marker[data-kind="guess"] .map-marker-body {
+  animation: pin-drop 380ms var(--ease-spring) both;
+}
+
+.map-marker[data-kind="answer"] .map-marker-body {
+  transform-origin: 50% 50%;
+  animation: pop-in 320ms var(--ease-spring) 420ms both;
+}
+
+.map-line {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 2 4;
+  animation: fade-in 400ms var(--ease-out-expo) 80ms both;
+}
+
+@keyframes pin-drop {
+  from {
+    opacity: 0;
+    transform: translateY(-14px) scale(0.6);
+  }
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.2);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-delay: 0ms !important;
+    transition-duration: 1ms !important;
+  }
 }

@@ -1,0 +1,164 @@
+[
+ {
+  "name": "Gravelines",
+  "region": "Hauts-de-France",
+  "department": "Nord",
+  "waterSource": "North Sea coast",
+  "reactors": 6,
+  "lat": 51.015,
+  "lon": 2.136
+ },
+ {
+  "name": "Penly",
+  "region": "Normandie",
+  "department": "Seine-Maritime",
+  "waterSource": "English Channel coast",
+  "reactors": 2,
+  "lat": 49.977,
+  "lon": 1.212
+ },
+ {
+  "name": "Paluel",
+  "region": "Normandie",
+  "department": "Seine-Maritime",
+  "waterSource": "English Channel coast",
+  "reactors": 4,
+  "lat": 49.858,
+  "lon": 0.636
+ },
+ {
+  "name": "Flamanville",
+  "region": "Normandie",
+  "department": "Manche",
+  "waterSource": "English Channel coast",
+  "reactors": 3,
+  "lat": 49.536,
+  "lon": -1.882
+ },
+ {
+  "name": "Chooz",
+  "region": "Grand Est",
+  "department": "Ardennes",
+  "waterSource": "Meuse",
+  "reactors": 2,
+  "lat": 50.09,
+  "lon": 4.789
+ },
+ {
+  "name": "Cattenom",
+  "region": "Grand Est",
+  "department": "Moselle",
+  "waterSource": "Moselle",
+  "reactors": 4,
+  "lat": 49.416,
+  "lon": 6.218
+ },
+ {
+  "name": "Nogent-sur-Seine",
+  "region": "Grand Est",
+  "department": "Aube",
+  "waterSource": "Seine",
+  "reactors": 2,
+  "lat": 48.515,
+  "lon": 3.518
+ },
+ {
+  "name": "Dampierre-en-Burly",
+  "region": "Centre-Val de Loire",
+  "department": "Loiret",
+  "waterSource": "Loire",
+  "reactors": 4,
+  "lat": 47.733,
+  "lon": 2.517
+ },
+ {
+  "name": "Belleville-sur-Loire",
+  "region": "Centre-Val de Loire",
+  "department": "Cher",
+  "waterSource": "Loire",
+  "reactors": 2,
+  "lat": 47.51,
+  "lon": 2.875
+ },
+ {
+  "name": "Saint-Laurent-des-Eaux",
+  "region": "Centre-Val de Loire",
+  "department": "Loir-et-Cher",
+  "waterSource": "Loire",
+  "reactors": 2,
+  "lat": 47.72,
+  "lon": 1.58
+ },
+ {
+  "name": "Chinon",
+  "region": "Centre-Val de Loire",
+  "department": "Indre-et-Loire",
+  "waterSource": "Loire",
+  "reactors": 4,
+  "lat": 47.231,
+  "lon": 0.17
+ },
+ {
+  "name": "Civaux",
+  "region": "Nouvelle-Aquitaine",
+  "department": "Vienne",
+  "waterSource": "Vienne",
+  "reactors": 2,
+  "lat": 46.457,
+  "lon": 0.653
+ },
+ {
+  "name": "Le Blayais",
+  "region": "Nouvelle-Aquitaine",
+  "department": "Gironde",
+  "waterSource": "Gironde estuary",
+  "reactors": 4,
+  "lat": 45.256,
+  "lon": -0.693
+ },
+ {
+  "name": "Golfech",
+  "region": "Occitanie",
+  "department": "Tarn-et-Garonne",
+  "waterSource": "Garonne",
+  "reactors": 2,
+  "lat": 44.106,
+  "lon": 0.845
+ },
+ {
+  "name": "Tricastin",
+  "region": "Auvergne-Rhône-Alpes",
+  "department": "Drôme",
+  "waterSource": "Rhône",
+  "reactors": 4,
+  "lat": 44.33,
+  "lon": 4.732
+ },
+ {
+  "name": "Cruas-Meysse",
+  "region": "Auvergne-Rhône-Alpes",
+  "department": "Ardèche",
+  "waterSource": "Rhône",
+  "reactors": 4,
+  "lat": 44.633,
+  "lon": 4.756
+ },
+ {
+  "name": "Saint-Alban-du-Rhône",
+  "region": "Auvergne-Rhône-Alpes",
+  "department": "Isère",
+  "waterSource": "Rhône",
+  "reactors": 2,
+  "lat": 45.404,
+  "lon": 4.755
+ },
+ {
+  "name": "Bugey",
+  "region": "Auvergne-Rhône-Alpes",
+  "department": "Ain",
+  "waterSource": "Rhône",
+  "reactors": 4,
+  "lat": 45.798,
+  "lon": 5.271
+ }
+]
