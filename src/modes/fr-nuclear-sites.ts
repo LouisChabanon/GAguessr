@@ -4,7 +4,7 @@ import type { GameMode } from "./types";
 
 export const frNuclearResearchMode: GameMode = {
   id: "fr-nuclear-research",
-  title: "Recherche et réacteurs",
+  title: "Sites de recherche",
   description: "Centres du CEA, réacteurs de recherche, prototypes et laboratoires : du berceau de Zoé à ITER.",
   scaleKm: 100,
   roundsPerGame: "all",
