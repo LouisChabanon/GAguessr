@@ -34,8 +34,13 @@ async function sendGame(payload: Submission): Promise<SubmitResult> {
   await ensureSession();
   const first = await submitGame(payload);
   if (first.ok || first.error !== "unauthenticated") return first;
-  // The stored session was revoked or expired for good: start a fresh anonymous one.
-  await browserSupabase().auth.signOut({ scope: "local" });
+  // Keep the same player (and their pseudo) whenever the session can still be refreshed.
+  const auth = browserSupabase().auth;
+  const { error: refreshError } = await auth.refreshSession();
+  if (!refreshError) return submitGame(payload);
+  // The stored session was revoked for good: start a fresh anonymous one.
+  console.warn("[scores] session lost, starting a new anonymous player", refreshError);
+  await auth.signOut({ scope: "local" });
   await ensureSession();
   return submitGame(payload);
 }
