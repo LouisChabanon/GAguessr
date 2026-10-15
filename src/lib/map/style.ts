@@ -26,6 +26,12 @@ const NEIGHBOUR_LABELS_ZOOM = MASK_FADE_ZOOM - 1.5;
 const MASK_BOUNDS: [[number, number], [number, number]] = [[-70, 15], [80, 80]];
 /** Our simplified outline is only shaded on the overview; OpenStreetMap's water takes over from here. */
 const COAST_FADE_ZOOM = 8;
+/** On the world map, state and province borders wait until a continent fills the screen. */
+const WORLD_REGION_BORDERS_ZOOM = 2.5;
+/** On the world map, country names give way to OpenStreetMap's towns here. */
+const WORLD_COUNTRY_NAMES_MAX_ZOOM = 6;
+/** On the world map, large cities get a label from here, as landmarks. */
+const WORLD_CITIES_ZOOM = 3.5;
 
 const ATTRIBUTION =
   '<a href="https://openfreemap.org" target="_blank" rel="noreferrer">OpenFreeMap</a> <a href="https://www.openmaptiles.org/" target="_blank" rel="noreferrer">© OpenMapTiles</a> Données <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">© OpenStreetMap</a>';
@@ -177,22 +183,14 @@ function coastLayers(p: Palette): LayerSpecification[] {
   ];
 }
 
-interface AdminSources {
-  hiddenPlaceNames: readonly string[];
-}
-
-interface LabelSources extends AdminSources {
-  land: Feature<MultiPolygon>;
-}
-
 const osmBoundary = (level: number): ExpressionSpecification => [
   "all",
   ["==", ["get", "admin_level"], level],
   ["==", ["get", "maritime"], 0],
 ];
 
-/** Département and region borders: ours on the overview, OpenStreetMap's up close. Drawn under the dim. */
-function adminBorderLayers(p: Palette): LayerSpecification[] {
+/** Our own département borders for the overview of France, handing over to OpenStreetMap's. */
+function departementOverviewLayers(p: Palette): LayerSpecification[] {
   return [
     {
       id: "departement-borders-overview",
@@ -208,6 +206,12 @@ function adminBorderLayers(p: Palette): LayerSpecification[] {
         "line-opacity": ["interpolate", ["linear"], ["zoom"], 5.5, 0, 6.5, 1, OSM_DETAIL_ZOOM, 1, OSM_DETAIL_ZOOM + 0.5, 0],
       },
     },
+  ];
+}
+
+/** Département (admin level 6) and region (level 4) borders from OpenStreetMap. Drawn under the dim. */
+function adminBorderLayers(p: Palette, regionMinZoom: number): LayerSpecification[] {
+  return [
     {
       id: "departement-borders",
       type: "line",
@@ -228,6 +232,7 @@ function adminBorderLayers(p: Palette): LayerSpecification[] {
       type: "line",
       source: TILE_SOURCE,
       "source-layer": "boundary",
+      minzoom: regionMinZoom,
       filter: osmBoundary(4),
       layout: { "line-join": "round" },
       paint: { "line-color": p.regionBorder, "line-width": widthByZoom([4, 0.8], [10, 1.6], [16, 3]) },
@@ -278,16 +283,21 @@ function countryBorderLayers(p: Palette): LayerSpecification[] {
 
 const HALO = (p: Palette) => ({ "text-halo-color": p.labelHalo, "text-halo-width": 1.4 });
 
-/** Street, water and place names from OpenStreetMap, minus the towns that share a site's name. */
-function osmLabelLayers(p: Palette, { hiddenPlaceNames, land }: LabelSources): LayerSpecification[] {
+/**
+ * Street, water and place names from OpenStreetMap, minus the towns that share a site's name.
+ * With France's outline, the neighbours' names are held back until their dim fades.
+ */
+function osmLabelLayers(p: Palette, hiddenPlaceNames: readonly string[], land: Feature<MultiPolygon> | null): LayerSpecification[] {
   const hidden = ["literal", [...hiddenPlaceNames]] as ExpressionSpecification;
-  // Labels sit above the dim, so the neighbours' own are held back until it fades.
-  const inFranceUntilZoomedIn: ExpressionSpecification = ["any", [">=", ["zoom"], NEIGHBOUR_LABELS_ZOOM], ["within", land]];
+  const inFranceUntilZoomedIn: ExpressionSpecification | boolean = land
+    ? ["any", [">=", ["zoom"], NEIGHBOUR_LABELS_ZOOM], ["within", land]]
+    : true;
   const notSpoiler: ExpressionSpecification = [
     "any",
     // Large cities stay: everyone knows where they are, and the map needs its landmarks.
     ["==", CLASS, "city"],
-    ["!", ["any", ["in", ["get", "name"], hidden], ["in", NAME, hidden]]],
+    // Site names are French or English; the tiles' `name` is in the local script.
+    ["!", ["any", ["in", ["get", "name"], hidden], ["in", NAME, hidden], ["in", ["coalesce", ["get", "name:en"], ""], hidden]]],
   ];
   const place = (id: string, classes: string[], minzoom: number, size: ExpressionSpecification | number, font = FONT): LayerSpecification => ({
     id,
@@ -362,6 +372,46 @@ function osmLabelLayers(p: Palette, { hiddenPlaceNames, land }: LabelSources): L
   ];
 }
 
+/** Country names on the world overview, then large cities as landmarks, until OpenStreetMap's towns take over. */
+function worldLabelLayers(p: Palette): LayerSpecification[] {
+  return [
+    {
+      id: "country-names",
+      type: "symbol",
+      source: TILE_SOURCE,
+      "source-layer": "place",
+      maxzoom: WORLD_COUNTRY_NAMES_MAX_ZOOM,
+      filter: ["==", CLASS, "country"],
+      layout: {
+        "text-field": NAME,
+        "text-font": FONT_BOLD,
+        "text-size": ["interpolate", ["linear"], ["zoom"], 1, 9, 5, 13],
+        "text-max-width": 7,
+        "text-letter-spacing": 0.06,
+        "symbol-sort-key": ["coalesce", ["get", "rank"], 99],
+      },
+      paint: { "text-color": p.adminLabel, ...HALO(p) },
+    },
+    {
+      id: "world-cities",
+      type: "symbol",
+      source: TILE_SOURCE,
+      "source-layer": "place",
+      minzoom: WORLD_CITIES_ZOOM,
+      maxzoom: OSM_PLACES_ZOOM,
+      filter: ["==", CLASS, "city"],
+      layout: {
+        "text-field": NAME,
+        "text-font": FONT,
+        "text-size": 11,
+        "text-max-width": 8,
+        "symbol-sort-key": ["coalesce", ["get", "rank"], 99],
+      },
+      paint: { "text-color": p.label, ...HALO(p) },
+    },
+  ];
+}
+
 /** Région and département names, and our curated major cities for the overview. */
 function franceLabelLayers(p: Palette): LayerSpecification[] {
   return [
@@ -422,41 +472,54 @@ function franceLabelLayers(p: Palette): LayerSpecification[] {
   ];
 }
 
-export interface MapStyleOptions extends LabelSources {
-  scheme: MapScheme;
-  /** TileJSON URL of an OpenMapTiles-schema vector tileset, e.g. OpenFreeMap's planet. */
-  tilesUrl: string;
-  glyphsUrl: string;
+/** France's own overview data, drawn over OpenStreetMap's on the France map. */
+export interface FranceOverlay {
+  land: Feature<MultiPolygon>;
   cities: readonly CityFeature[];
   departementBorders: Feature<MultiLineString>;
   departementLabels: FeatureCollection;
   regionLabels: FeatureCollection;
 }
 
-export function buildMapStyle(options: MapStyleOptions): StyleSpecification {
-  const { scheme, tilesUrl, glyphsUrl, cities, land, departementBorders, departementLabels, regionLabels } = options;
+export interface MapStyleOptions {
+  scheme: MapScheme;
+  /** TileJSON URL of an OpenMapTiles-schema vector tileset, e.g. OpenFreeMap's planet. */
+  tilesUrl: string;
+  glyphsUrl: string;
+  hiddenPlaceNames: readonly string[];
+  /** Spotlights France with its own overview layers; `null` draws the whole world evenly. */
+  france: FranceOverlay | null;
+}
+
+function franceSources(france: FranceOverlay): StyleSpecification["sources"] {
+  return {
+    france: { type: "geojson", data: france.land },
+    outside: { type: "geojson", data: outsideOf(france.land, MASK_BOUNDS) },
+    departementBorders: { type: "geojson", data: france.departementBorders },
+    departementLabels: { type: "geojson", data: france.departementLabels },
+    regionLabels: { type: "geojson", data: france.regionLabels },
+    cities: { type: "geojson", data: { type: "FeatureCollection", features: [...france.cities] } },
+  };
+}
+
+export function buildMapStyle({ scheme, tilesUrl, glyphsUrl, hiddenPlaceNames, france }: MapStyleOptions): StyleSpecification {
   const p = PALETTES[scheme];
   return {
     version: 8,
     glyphs: glyphsUrl,
     sources: {
       [TILE_SOURCE]: { type: "vector", url: tilesUrl, attribution: ATTRIBUTION },
-      france: { type: "geojson", data: land },
-      outside: { type: "geojson", data: outsideOf(land, MASK_BOUNDS) },
-      departementBorders: { type: "geojson", data: departementBorders },
-      departementLabels: { type: "geojson", data: departementLabels },
-      regionLabels: { type: "geojson", data: regionLabels },
-      cities: { type: "geojson", data: { type: "FeatureCollection", features: [...cities] } },
+      ...(france ? franceSources(france) : {}),
       [REVEAL_SOURCE]: { type: "geojson", data: { type: "FeatureCollection", features: [] } },
     },
     layers: [
       ...groundLayers(p),
-      ...adminBorderLayers(p),
-      ...maskLayers(p),
-      ...coastLayers(p),
+      ...(france ? departementOverviewLayers(p) : []),
+      ...adminBorderLayers(p, france ? 0 : WORLD_REGION_BORDERS_ZOOM),
+      ...(france ? [...maskLayers(p), ...coastLayers(p)] : []),
       ...countryBorderLayers(p),
-      ...osmLabelLayers(p, options),
-      ...franceLabelLayers(p),
+      ...osmLabelLayers(p, hiddenPlaceNames, france?.land ?? null),
+      ...(france ? franceLabelLayers(p) : worldLabelLayers(p)),
       {
         id: "reveal-line",
         type: "line",

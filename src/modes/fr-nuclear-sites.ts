@@ -8,6 +8,8 @@ export const frNuclearResearchMode: GameMode = {
   description: "Centres du CEA, réacteurs de recherche, prototypes et laboratoires : du berceau de Zoé à ITER.",
   scaleKm: 100,
   roundsPerGame: "all",
+  map: "france",
+  hasPhotos: true,
   loadTargets: async () =>
     withPhotos(
       "fr-nuclear-research",
@@ -22,6 +24,8 @@ export const frMilitaryNuclearMode: GameMode = {
   description: "La carte de la dissuasion : bases de sous-marins, centres de la DAM, bases aériennes et vestiges de la guerre froide.",
   scaleKm: 100,
   roundsPerGame: "all",
+  map: "france",
+  hasPhotos: true,
   loadTargets: async () =>
     withPhotos(
       "fr-military-nuclear",

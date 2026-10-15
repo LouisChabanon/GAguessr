@@ -1,4 +1,5 @@
 import type { LonLat } from "@/lib/geo/distance";
+import type { MapArea } from "@/lib/map/bounds";
 
 /** A freely licensed photo of the site, with the attribution its license requires. */
 export interface TargetPhoto {
@@ -34,6 +35,10 @@ export interface GameModeMeta {
   scaleKm: number;
   /** A fixed number of rounds, or "all" to play every target once. */
   roundsPerGame: number | "all";
+  /** The map the targets are placed on. */
+  map: MapArea;
+  /** Whether targets come with photos; without, the banner shows no photo slot. */
+  hasPhotos: boolean;
 }
 
 export interface GameMode extends GameModeMeta {

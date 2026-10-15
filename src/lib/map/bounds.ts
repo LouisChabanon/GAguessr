@@ -11,13 +11,39 @@ export const FRANCE_BOUNDS: Bounds = [
 ];
 
 /**
- * How far the player may pan. It must be much wider than France: MapLibre will not
- * zoom out past what fits inside it.
+ * How far the player may pan around France. It must be much wider than France: MapLibre
+ * will not zoom out past what fits inside it.
  */
-export const MAP_MAX_BOUNDS: Bounds = [
+const FRANCE_MAX_BOUNDS: Bounds = [
   [-25, 33],
   [32, 60],
 ];
+
+/** Every inhabited continent, from Alaska to New Zealand: what the world map frames each round. */
+export const WORLD_BOUNDS: Bounds = [
+  [-130, -45],
+  [175, 72],
+];
+
+/** Which map a game mode plays on. */
+export type MapArea = "france" | "world";
+
+export interface MapView {
+  /** Framed at the start of each round. */
+  bounds: Bounds;
+  /**
+   * How far the player may pan; `null` for the whole world, which MapLibre already keeps in
+   * view without world copies (a 360° `maxBounds` makes it fail to start).
+   */
+  maxBounds: Bounds | null;
+  /** Accessible name of the map. */
+  label: string;
+}
+
+export const MAP_VIEWS: Readonly<Record<MapArea, MapView>> = {
+  france: { bounds: FRANCE_BOUNDS, maxBounds: FRANCE_MAX_BOUNDS, label: "Carte : France" },
+  world: { bounds: WORLD_BOUNDS, maxBounds: null, label: "Carte : monde" },
+};
 
 /** Street level: the tiles go to zoom 14 and MapLibre over-zooms them cleanly up to here. */
 export const MAP_MAX_ZOOM = 18;

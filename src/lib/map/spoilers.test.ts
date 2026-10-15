@@ -24,7 +24,7 @@ describe("spoilerPlaceNames", () => {
 describe("SPOILER_PLACE_NAMES", () => {
   it("covers the towns of every game mode", () => {
     expect(SPOILER_PLACE_NAMES).toEqual(
-      expect.arrayContaining(["Flamanville", "Gravelines", "Chinon", "Cattenom", "Nogent-sur-Seine", "Marcoule", "Brennilis", "Pierrelatte", "Taverny", "Saint-Dizier", "Istres", "Landivisiau", "Gramat", "Valduc"]),
+      expect.arrayContaining(["Flamanville", "Gravelines", "Chinon", "Cattenom", "Nogent-sur-Seine", "Marcoule", "Brennilis", "Pierrelatte", "Taverny", "Saint-Dizier", "Istres", "Landivisiau", "Gramat", "Valduc", "Kudankulam", "Zaporizhzhia", "Balakovo"]),
     );
   });
 });

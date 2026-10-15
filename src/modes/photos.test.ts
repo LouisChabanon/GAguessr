@@ -14,14 +14,25 @@ const WITHOUT_PHOTO = [
   "fr-military-nuclear/cea-gramat",
   "fr-military-nuclear/cea-le-ripault",
   "fr-military-nuclear/pierrelatte",
+  "world-nuclear-plants/pk-karachi",
+  "world-nuclear-plants/pk-chashma",
+  "world-nuclear-plants/cn-changjiang",
+  "world-nuclear-plants/cn-fangchenggang",
+  "world-nuclear-plants/cn-fangjiashan",
+  "world-nuclear-plants/cn-fuqing",
+  "world-nuclear-plants/cn-hongyanhe",
+  "world-nuclear-plants/cn-ling-ao",
+  "world-nuclear-plants/cn-ningde",
+  "world-nuclear-plants/cn-shidao-bay",
+  "world-nuclear-plants/us-waterford",
 ];
 
 const photos = parsePhotos(photosData);
 
 describe("site photos", () => {
-  it("cover every site except the ones without a free photo", async () => {
+  it("cover every site of the modes with photos, except the ones without a free photo", async () => {
     const missing: string[] = [];
-    for (const mode of GAME_MODES) {
+    for (const mode of GAME_MODES.filter((m) => m.hasPhotos)) {
       for (const target of await mode.loadTargets()) {
         if (!target.photo) missing.push(`${mode.id}/${target.id}`);
       }
@@ -43,7 +54,8 @@ describe("site photos", () => {
   it("carry an author and a free license for attribution", () => {
     for (const photo of Object.values(photos)) {
       expect(photo.author.length).toBeGreaterThan(0);
-      expect(photo.license).toMatch(/^(CC BY-SA \d\.\d|CC BY \d\.\d|CC0|Public domain)$/);
+      // CC licenses may be national ports ("CC BY 3.0 br"); "Attribution" is Commons' attribution-only license.
+      expect(photo.license).toMatch(/^(CC BY-SA \d\.\d( [a-z]{2})?|CC BY \d\.\d( [a-z]{2})?|CC0|Public domain|Attribution|GODL-India|GFDL)$/);
       expect(photo.sourceUrl).toMatch(/^https:\/\/commons\.wikimedia\.org\//);
     }
   });

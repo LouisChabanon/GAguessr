@@ -22,7 +22,7 @@ export function SitePhoto({ name, photo }: SitePhotoProps) {
       <span
         role="img"
         aria-label="Aucune photo libre de ce site"
-        title="Site sensible : aucune photo libre de droits"
+        title="Aucune photo libre de droits de ce site"
         data-testid="site-photo-missing"
         className="photo-placeholder grid h-15 w-20 shrink-0 place-items-center rounded-lg border border-line text-muted sm:h-21 sm:w-28"
       >

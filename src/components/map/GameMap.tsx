@@ -5,7 +5,7 @@ import type { GeoJSONSource, Map as MaplibreMap, Marker } from "maplibre-gl";
 import { useCallback, useEffect, useMemo, useRef, type KeyboardEvent } from "react";
 import type { RoundResult } from "@/game/evaluate";
 import type { LonLat } from "@/lib/geo/distance";
-import { FRANCE_BOUNDS, REVEAL_MAX_ZOOM, revealBounds, toLngLat } from "@/lib/map/bounds";
+import { MAP_VIEWS, REVEAL_MAX_ZOOM, revealBounds, toLngLat, type MapArea } from "@/lib/map/bounds";
 import { REVEAL_SOURCE } from "@/lib/map/style";
 import { createMarkerElement, type MarkerKind } from "./markerElement";
 import { useMaplibre } from "./useMaplibre";
@@ -28,6 +28,7 @@ const ARROW_STEPS: Readonly<Record<string, readonly [number, number]>> = {
 };
 
 interface GameMapProps {
+  area: MapArea;
   /** Changes every round; replays the pin-drop animation. */
   roundKey: string;
   guess: LonLat | null;
@@ -37,6 +38,8 @@ interface GameMapProps {
   interactive: boolean;
   onPick: (lonLat: LonLat) => void;
   onConfirm: () => void;
+  /** Called once the map has loaded and takes clicks. */
+  onReady?: () => void;
   /** Live measurement of the HUD, used to frame the map around it. */
   getSafeArea?: () => SafeArea;
 }
@@ -87,13 +90,18 @@ function useMarkers(map: MaplibreMap | null, kind: MarkerKind, points: readonly 
   }, [map]);
 }
 
-export function GameMap({ roundKey, guess, result, pastResults, interactive, onPick, onConfirm, getSafeArea }: GameMapProps) {
+export function GameMap({ area, roundKey, guess, result, pastResults, interactive, onPick, onConfirm, onReady, getSafeArea }: GameMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const padding = useCallback(() => {
     const safe = getSafeArea?.() ?? NO_SAFE_AREA;
     return { top: safe.top + EDGE_PADDING_PX / 2, bottom: safe.bottom + EDGE_PADDING_PX / 2 };
   }, [getSafeArea]);
-  const map = useMaplibre(containerRef, padding);
+  const map = useMaplibre(containerRef, padding, area);
+  const view = MAP_VIEWS[area];
+
+  useEffect(() => {
+    if (map) onReady?.();
+  }, [map, onReady]);
 
   // Latest callbacks for MapLibre's listeners, which are attached once.
   const live = useRef({ interactive, onPick });
@@ -140,7 +148,7 @@ export function GameMap({ roundKey, guess, result, pastResults, interactive, onP
     };
   }, [map, result]);
 
-  // Frame the guess and the answer on reveal; back to the whole of France for the next round.
+  // Frame the guess and the answer on reveal; back to the whole map for the next round.
   useEffect(() => {
     if (!map) return;
     const pad = padding();
@@ -151,9 +159,9 @@ export function GameMap({ roundKey, guess, result, pastResults, interactive, onP
     if (result) {
       map.fitBounds(revealBounds(result.guess, result.answer), { ...options, maxZoom: REVEAL_MAX_ZOOM });
     } else {
-      map.fitBounds(FRANCE_BOUNDS, options);
+      map.fitBounds(view.bounds, options);
     }
-  }, [map, result, padding]);
+  }, [map, result, padding, view]);
 
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (!map) return;
@@ -182,7 +190,7 @@ export function GameMap({ roundKey, guess, result, pastResults, interactive, onP
     <div
       className="game-map absolute inset-0 bg-(--map-ocean)"
       role="application"
-      aria-label="Carte : France"
+      aria-label={view.label}
       aria-describedby="map-instructions"
       tabIndex={0}
       data-interactive={interactive}

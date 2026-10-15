@@ -54,9 +54,9 @@ export default function CreditsPage() {
       <h1 className="mt-12 text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">Crédits photos</h1>
       <p className="mt-4 max-w-xl text-muted">
         Les photos proviennent de Wikimedia Commons et sont réutilisées selon leur licence. Les sites militaires
-        sensibles n&apos;ont, pour la plupart, aucune photo libre : un motif les remplace.
+        sensibles et la plupart des centrales chinoises n&apos;ont aucune photo libre : un motif les remplace.
       </p>
-      {GAME_MODES.map((mode) => (
+      {GAME_MODES.filter((mode) => mode.hasPhotos).map((mode) => (
         <ModeCredits key={mode.id} mode={mode} />
       ))}
     </main>

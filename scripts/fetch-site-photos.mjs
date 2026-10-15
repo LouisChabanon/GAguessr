@@ -1,8 +1,9 @@
 /**
  * Downloads one freely licensed photo per site from Wikimedia Commons.
  *
- * For each site, the photo is the lead image of its French Wikipedia article
- * (`wikipedia` field in the datasets), or the first suitable photo in the article
+ * For each site, the photo is the lead image of its Wikipedia article (`wikipedia`
+ * field in the datasets: French Wikipedia for French sites, English Wikipedia for the
+ * world's power stations), or the first suitable photo in the article
  * when the lead image is a logo, a map or a diagram. `OVERRIDES` pins a Commons
  * file by hand when the automatic pick is wrong.
  *
@@ -17,11 +18,22 @@
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
+/** Each mode's dataset, the Wikipedia its `wikipedia` titles belong to, and how the mode ids its sites. */
 const DATASETS = {
-  "fr-nuclear-plants": "src/data/fr-nuclear-plants.json",
-  "fr-nuclear-research": "src/data/fr-nuclear-research.json",
-  "fr-military-nuclear": "src/data/fr-military-nuclear.json",
+  "fr-nuclear-plants": { file: "src/data/fr-nuclear-plants.json", wiki: "fr", siteId: (site) => slugify(site.name) },
+  "fr-nuclear-research": { file: "src/data/fr-nuclear-research.json", wiki: "fr", siteId: (site) => slugify(site.name) },
+  "fr-military-nuclear": { file: "src/data/fr-military-nuclear.json", wiki: "fr", siteId: (site) => slugify(site.name) },
+  // Same id as buildWorldPlantTargets in src/modes/world-nuclear-plants.ts.
+  "world-nuclear-plants": {
+    file: "src/data/world-nuclear-plants.json",
+    wiki: "en",
+    siteId: (site) => slugify(`${site.countryCode} ${site.name}`),
+    // French stations reuse the French mode's photos, already checked by eye, rather than downloading copies.
+    reuseFrom: "fr-nuclear-plants",
+  },
 };
+/** A site reuses a photo from `reuseFrom` when the two lie this close. */
+const REUSE_DISTANCE_KM = 5;
 const OUTPUT_JSON = "src/data/site-photos.json";
 const THUMB_WIDTH = 960;
 const USER_AGENT = "pinit-geo-game/0.1 (photo import script; local development)";
@@ -45,6 +57,20 @@ const OVERRIDES = {
   "fr-military-nuclear/cea-gramat": null, // the article's photos show the town, not the centre
   "fr-military-nuclear/cea-le-ripault": null, // the article's photos are unrelated (a museum locomotive)
   "fr-military-nuclear/pierrelatte": null, // Commons only has maps of the site
+  "world-nuclear-plants/jp-sendai": "Sendai 04780025 (8388173285) (cropped).jpg", // the lead image is mostly sky
+  "world-nuclear-plants/ru-leningrad-ii": "LAES2-Jan2016.jpg", // the article shares the old plant's photo
+  "world-nuclear-plants/pk-karachi": null, // the article only shows a fuel bundle
+  // No free photo of these stations on Commons (most Chinese stations have none).
+  "world-nuclear-plants/pk-chashma": null,
+  "world-nuclear-plants/cn-changjiang": null, // only a satellite image
+  "world-nuclear-plants/cn-fangchenggang": null,
+  "world-nuclear-plants/cn-fangjiashan": null,
+  "world-nuclear-plants/cn-fuqing": null,
+  "world-nuclear-plants/cn-hongyanhe": null,
+  "world-nuclear-plants/cn-ling-ao": null,
+  "world-nuclear-plants/cn-ningde": null,
+  "world-nuclear-plants/cn-shidao-bay": null,
+  "world-nuclear-plants/us-waterford": null,
 };
 
 /** File names that are almost never a photo of the site itself. */
@@ -90,12 +116,12 @@ function apiUrl(host, params) {
   return `https://${host}/w/api.php?${new URLSearchParams({ format: "json", formatversion: "2", ...params })}`;
 }
 
-/** Lead image and the list of images used in a French Wikipedia article. */
-async function articleImages(title) {
+/** Lead image and the list of images used in a Wikipedia article (a `#section` anchor is dropped). */
+async function articleImages(wiki, title) {
   const data = await getJson(
-    apiUrl("fr.wikipedia.org", {
+    apiUrl(`${wiki}.wikipedia.org`, {
       action: "query",
-      titles: title,
+      titles: title.split("#")[0],
       redirects: "1",
       prop: "pageimages|images",
       piprop: "name",
@@ -103,7 +129,7 @@ async function articleImages(title) {
     }),
   );
   const page = data.query?.pages?.[0];
-  if (!page || page.missing) throw new Error(`No French Wikipedia article "${title}"`);
+  if (!page || page.missing) throw new Error(`No ${wiki} Wikipedia article "${title}"`);
   return {
     lead: page.pageimage ?? null,
     others: (page.images ?? []).map((img) => img.title.replace(/^(Fichier|File):/, "")),
@@ -149,6 +175,31 @@ async function commonsInfo(fileName) {
   };
 }
 
+function haversineKm([lon1, lat1], [lon2, lat2]) {
+  const rad = Math.PI / 180;
+  const a =
+    Math.sin(((lat2 - lat1) * rad) / 2) ** 2 +
+    Math.cos(lat1 * rad) * Math.cos(lat2 * rad) * Math.sin(((lon2 - lon1) * rad) / 2) ** 2;
+  return 2 * 6371 * Math.asin(Math.sqrt(a));
+}
+
+/** Key of the `reuseFrom` site at the same place as `site`, if any. */
+function sameSiteKey(site, reuseFrom) {
+  const { file, siteId } = DATASETS[reuseFrom];
+  const match = JSON.parse(readFileSync(file, "utf8")).find(
+    (other) => haversineKm([site.lon, site.lat], [other.lon, other.lat]) <= REUSE_DISTANCE_KM,
+  );
+  return match ? `${reuseFrom}/${siteId(match)}` : null;
+}
+
+/** Deletes a photo file unless another entry still points at it. */
+function removePhotoFile(photos, key) {
+  const { src } = photos[key];
+  if (!Object.entries(photos).some(([other, photo]) => other !== key && photo.src === src)) {
+    rmSync(join("public", src), { force: true });
+  }
+}
+
 async function download(url, path) {
   const res = await politeFetch(url);
   mkdirSync(dirname(path), { recursive: true });
@@ -169,12 +220,19 @@ async function main() {
   const photos = { ...existing };
   const failures = [];
 
-  for (const [modeId, file] of Object.entries(DATASETS)) {
+  for (const [modeId, { file, wiki, siteId, reuseFrom }] of Object.entries(DATASETS)) {
     for (const site of JSON.parse(readFileSync(file, "utf8"))) {
-      const key = `${modeId}/${slugify(site.name)}`;
+      const key = `${modeId}/${siteId(site)}`;
       if (only && key !== only) continue;
+      const reusedKey = reuseFrom ? sameSiteKey(site, reuseFrom) : null;
+      if (reusedKey && photos[reusedKey]) {
+        if (photos[key] && photos[key].src !== photos[reusedKey].src) removePhotoFile(photos, key);
+        photos[key] = photos[reusedKey];
+        console.log(`= ${key} ← ${reusedKey}`);
+        continue;
+      }
       if (OVERRIDES[key] === null) {
-        if (photos[key]) rmSync(join("public", photos[key].src), { force: true });
+        if (photos[key]) removePhotoFile(photos, key);
         delete photos[key];
         console.log(`– ${key}: no free photo (placeholder)`);
         continue;
@@ -182,7 +240,7 @@ async function main() {
       const isOverridden = key in OVERRIDES && photos[key]?.commonsFile !== OVERRIDES[key];
       if (!force && photos[key] && !isOverridden) continue;
       try {
-        const fileName = OVERRIDES[key] ?? pickFile(await articleImages(site.wikipedia));
+        const fileName = OVERRIDES[key] ?? pickFile(await articleImages(wiki, site.wikipedia));
         if (!fileName) throw new Error(`no suitable photo in "${site.wikipedia}"`);
         const info = await commonsInfo(fileName);
         const ext = info.url.match(/\.(jpe?g|png)(?:$|\?)/i)?.[1]?.toLowerCase().replace("jpeg", "jpg") ?? "jpg";

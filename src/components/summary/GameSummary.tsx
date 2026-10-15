@@ -3,18 +3,20 @@ import type { RoundResult } from "@/game/evaluate";
 import type { ScoreRecord } from "@/hooks/useBestScore";
 import { buttonClass } from "@/components/ui/button";
 import { ScoreBar } from "@/components/ui/ScoreBar";
-import { formatDistance, formatScore } from "@/lib/format";
+import { formatDistance, formatDuration, formatScore } from "@/lib/format";
 import { MAX_ROUND_SCORE } from "@/lib/geo/scoring";
 
 interface GameSummaryProps {
   modeTitle: string;
   results: readonly RoundResult[];
   total: number;
+  /** Total guessing time, reveals excluded. */
+  timeMs: number;
   record: ScoreRecord | null;
   onPlayAgain: () => void;
 }
 
-export function GameSummary({ modeTitle, results, total, record, onPlayAgain }: GameSummaryProps) {
+export function GameSummary({ modeTitle, results, total, timeMs, record, onPlayAgain }: GameSummaryProps) {
   const max = results.length * MAX_ROUND_SCORE;
 
   return (
@@ -29,6 +31,9 @@ export function GameSummary({ modeTitle, results, total, record, onPlayAgain }: 
           <span className="text-5xl font-semibold tracking-tight sm:text-6xl">{formatScore(total)}</span>
           <span className="text-lg text-muted">/ {formatScore(max)}</span>
         </h2>
+        <p className="mt-1 text-sm text-muted">
+          en <span data-testid="game-time" className="font-medium text-ink tabular-nums">{formatDuration(timeMs)}</span> de recherche
+        </p>
         {record && <BestScoreNote record={record} />}
 
         <ol className="mt-6 divide-y divide-line border-y border-line">

@@ -12,6 +12,8 @@ export interface UseGame {
   state: GameState;
   record: ScoreRecord | null;
   place: (guess: LonLat) => void;
+  /** Starts the first round's stopwatch; call it once the map can take a pin. */
+  startClock: () => void;
   confirm: () => void;
   next: () => void;
   restart: () => void;
@@ -32,7 +34,10 @@ export function useGame(mode: GameMode): UseGame {
       .loadTargets()
       .then((targets) => {
         if (cancelled) return;
-        dispatch({ type: "loaded", targets: pickTargets(targets, roundCount(mode.roundsPerGame, targets.length)) });
+        dispatch({
+          type: "loaded",
+          targets: pickTargets(targets, roundCount(mode.roundsPerGame, targets.length)),
+        });
       })
       .catch((error: unknown) => {
         if (!cancelled) dispatch({ type: "failed", message: errorMessage(error) });
@@ -43,12 +48,13 @@ export function useGame(mode: GameMode): UseGame {
   }, [mode, attempt]);
 
   const place = useCallback((guess: LonLat) => dispatch({ type: "place", guess }), []);
-  const confirm = useCallback(() => dispatch({ type: "confirm" }), []);
+  const startClock = useCallback(() => dispatch({ type: "start", at: Date.now() }), []);
+  const confirm = useCallback(() => dispatch({ type: "confirm", at: Date.now() }), []);
 
   const next = useCallback(() => {
     const isLastRound = state.status === "revealed" && state.roundIndex === state.targets.length - 1;
     if (isLastRound) setRecord(recordScore(mode.id, totalScore(state.results)));
-    dispatch({ type: "next" });
+    dispatch({ type: "next", at: Date.now() });
   }, [mode.id, state]);
 
   const restart = useCallback(() => {
@@ -57,5 +63,5 @@ export function useGame(mode: GameMode): UseGame {
     setAttempt((n) => n + 1);
   }, []);
 
-  return { state, record, place, confirm, next, restart };
+  return { state, record, place, startClock, confirm, next, restart };
 }

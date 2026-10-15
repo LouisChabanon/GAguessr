@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ActionBar } from "@/components/hud/ActionBar";
 import { TargetBanner } from "@/components/hud/TargetBanner";
 import { GameMap, type SafeArea } from "@/components/map/GameMap";
@@ -21,7 +21,13 @@ export function Game({ modeId }: GameProps) {
   // Modes hold functions, so the client looks them up by id rather than receiving them as props.
   const mode = getMode(modeId);
   if (!mode) throw new Error(`Unknown game mode "${modeId}"`);
-  const { state, record, place, confirm, next, restart } = useGame(mode);
+  const { state, record, place, startClock, confirm, next, restart } = useGame(mode);
+  // The clock starts once both the sites and the map are ready, so a slow map costs no time.
+  const [isMapReady, setIsMapReady] = useState(false);
+  const handleMapReady = useCallback(() => setIsMapReady(true), []);
+  useEffect(() => {
+    if (isMapReady && state.status === "guessing") startClock();
+  }, [isMapReady, state.status, startClock]);
   const topBarRef = useRef<HTMLElement>(null);
   const bottomBarRef = useRef<HTMLElement>(null);
   const getSafeArea = useCallback(
@@ -43,6 +49,7 @@ export function Game({ modeId }: GameProps) {
   return (
     <div className="absolute inset-0">
       <GameMap
+        area={mode.map}
         roundKey={target?.id ?? "none"}
         guess={state.guess}
         result={result}
@@ -50,6 +57,7 @@ export function Game({ modeId }: GameProps) {
         interactive={state.status === "guessing"}
         onPick={place}
         onConfirm={confirm}
+        onReady={handleMapReady}
         getSafeArea={getSafeArea}
       />
 
@@ -58,10 +66,12 @@ export function Game({ modeId }: GameProps) {
           <TargetBanner
             ref={topBarRef}
             modeTitle={mode.title}
+            showPhoto={mode.hasPhotos}
             target={target}
             round={state.roundIndex + 1}
             rounds={state.targets.length}
             score={total}
+            clock={state}
           />
           <ActionBar
             ref={bottomBarRef}
@@ -93,6 +103,7 @@ export function Game({ modeId }: GameProps) {
           modeTitle={mode.title}
           results={state.results}
           total={total}
+          timeMs={state.stoppedMs}
           record={record}
           onPlayAgain={restart}
         />

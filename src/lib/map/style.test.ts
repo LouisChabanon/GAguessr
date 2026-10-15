@@ -2,24 +2,23 @@ import { describe, expect, it } from "vitest";
 import type { FeatureCollection } from "geojson";
 import type { FilterSpecification, LayerSpecification } from "maplibre-gl";
 import { FRENCH_CITIES } from "@/lib/geo/frenchCities";
-import { buildMapStyle, REVEAL_SOURCE } from "./style";
+import { buildMapStyle, REVEAL_SOURCE, type FranceOverlay } from "./style";
 
 const EMPTY: FeatureCollection = { type: "FeatureCollection", features: [] };
 const TILES = "https://tiles.openfreemap.org/planet";
 const GLYPHS = "https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf";
 
-const style = (scheme: "light" | "dark" = "light") =>
-  buildMapStyle({
-    scheme,
-    tilesUrl: TILES,
-    glyphsUrl: GLYPHS,
-    cities: FRENCH_CITIES,
-    land: { type: "Feature", properties: {}, geometry: { type: "MultiPolygon", coordinates: [] } },
-    departementBorders: { type: "Feature", properties: {}, geometry: { type: "MultiLineString", coordinates: [] } },
-    departementLabels: EMPTY,
-    regionLabels: EMPTY,
-    hiddenPlaceNames: ["Flamanville", "Chinon"],
-  });
+const FRANCE: FranceOverlay = {
+  cities: FRENCH_CITIES,
+  land: { type: "Feature", properties: {}, geometry: { type: "MultiPolygon", coordinates: [] } },
+  departementBorders: { type: "Feature", properties: {}, geometry: { type: "MultiLineString", coordinates: [] } },
+  departementLabels: EMPTY,
+  regionLabels: EMPTY,
+};
+
+const style = (scheme: "light" | "dark" = "light", france: FranceOverlay | null = FRANCE) =>
+  buildMapStyle({ scheme, tilesUrl: TILES, glyphsUrl: GLYPHS, hiddenPlaceNames: ["Flamanville", "Chinon"], france });
+const worldStyle = () => style("light", null);
 
 const sourceLayer = (layer: LayerSpecification) => ("source-layer" in layer ? layer["source-layer"] : undefined);
 const filterOf = (layer: LayerSpecification): FilterSpecification | undefined => ("filter" in layer ? layer.filter : undefined);
@@ -100,3 +99,38 @@ describe("buildMapStyle", () => {
     expect(JSON.stringify(water("light"))).not.toEqual(JSON.stringify(water("dark")));
   });
 });
+
+describe("buildMapStyle without France's overlay (world map)", () => {
+  const FRANCE_ONLY_SOURCES = ["france", "outside", "departementBorders", "departementLabels", "regionLabels", "cities"];
+
+  it("draws the whole world evenly: no dim, no French overview data", () => {
+    const s = worldStyle();
+    for (const source of FRANCE_ONLY_SOURCES) expect(s.sources).not.toHaveProperty(source);
+    const ids = s.layers.map((l) => l.id);
+    for (const id of ["neighbours-mask", "water-over-mask", "coast-glow", "departement-borders-overview", "region-labels", "departement-labels", "city-labels"]) {
+      expect(ids).not.toContain(id);
+    }
+    // Every layer reads a source the style defines.
+    for (const layer of s.layers) {
+      if ("source" in layer) expect(s.sources).toHaveProperty(layer.source as string);
+    }
+  });
+
+  it("names countries on the overview and large cities closer in, and keeps borders and the reveal line", () => {
+    const s = worldStyle();
+    const ids = s.layers.map((l) => l.id);
+    expect(ids).toEqual(expect.arrayContaining(["country-names", "world-cities", "country-borders", "region-borders", "places-towns"]));
+    expect(ids.at(-1)).toBe("reveal-line");
+    expect(s.layers.find((l) => l.id === "region-borders")).toHaveProperty("minzoom", expect.any(Number));
+  });
+
+  it("shows every country's labels, but still hides towns named after a site, in English too", () => {
+    for (const layer of worldStyle().layers.filter((l) => sourceLayer(l) === "place" && l.id.startsWith("places-"))) {
+      const filter = JSON.stringify(filterOf(layer));
+      expect(filter).not.toContain('"within"');
+      expect(filter).toContain('["literal",["Flamanville","Chinon"]]');
+      expect(filter).toContain('"name:en"');
+    }
+  });
+});
+

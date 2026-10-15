@@ -38,6 +38,8 @@ export const frNuclearPlantsMode: GameMode = {
   description: "Les 18 centrales nucléaires en activité, à placer sur la carte des régions et grandes villes.",
   scaleKm: 100,
   roundsPerGame: "all",
+  map: "france",
+  hasPhotos: true,
   loadTargets: async () =>
     withPhotos(
       "fr-nuclear-plants",
