@@ -1,31 +1,23 @@
 "use client";
 
-import { geoPath } from "d3-geo";
-import { pointer, select } from "d3-selection";
-import "d3-transition";
-import { zoom, zoomIdentity, type D3ZoomEvent, type ZoomBehavior, type ZoomTransform } from "d3-zoom";
-import { useEffect, useMemo, useRef, type KeyboardEvent, type MouseEvent } from "react";
+import "maplibre-gl/dist/maplibre-gl.css";
+import type { GeoJSONSource, Map as MaplibreMap, Marker } from "maplibre-gl";
+import { useCallback, useEffect, useMemo, useRef, type KeyboardEvent } from "react";
 import type { RoundResult } from "@/game/evaluate";
 import type { LonLat } from "@/lib/geo/distance";
-import type { Basemap, Region } from "@/lib/geo/regions";
-import {
-  contentExtent,
-  fitProjection,
-  invertPoint,
-  revealTransform,
-  type Extent,
-  type SafeArea,
-} from "@/lib/map/viewport";
-import { MapMarker } from "./MapMarker";
-import { useBasemapCanvas } from "./useBasemapCanvas";
-import { useElementSize } from "./useElementSize";
+import { FRANCE_BOUNDS, REVEAL_MAX_ZOOM, revealBounds, toLngLat } from "@/lib/map/bounds";
+import { REVEAL_SOURCE } from "@/lib/map/style";
+import { createMarkerElement, type MarkerKind } from "./markerElement";
+import { useMaplibre } from "./useMaplibre";
 
-export type { SafeArea } from "@/lib/map/viewport";
+export interface SafeArea {
+  top: number;
+  bottom: number;
+}
 
-const ZOOM_DURATION_MS = 750;
-const KEY_ZOOM_DURATION_MS = 200;
+const CAMERA_DURATION_MS = 750;
+const EDGE_PADDING_PX = 40;
 const KEY_STEP_PX = 14;
-const KEY_ZOOM_FACTOR = 1.6;
 const NO_SAFE_AREA: SafeArea = { top: 0, bottom: 0 };
 
 const ARROW_STEPS: Readonly<Record<string, readonly [number, number]>> = {
@@ -36,8 +28,6 @@ const ARROW_STEPS: Readonly<Record<string, readonly [number, number]>> = {
 };
 
 interface GameMapProps {
-  region: Region;
-  basemap: Basemap;
   /** Changes every round; replays the pin-drop animation. */
   roundKey: string;
   guess: LonLat | null;
@@ -47,7 +37,7 @@ interface GameMapProps {
   interactive: boolean;
   onPick: (lonLat: LonLat) => void;
   onConfirm: () => void;
-  /** Live measurement of the HUD, used to frame reveals. */
+  /** Live measurement of the HUD, used to frame the map around it. */
   getSafeArea?: () => SafeArea;
 }
 
@@ -55,205 +45,154 @@ function prefersReducedMotion(): boolean {
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
-export function GameMap({
-  region,
-  basemap,
-  roundKey,
-  guess,
-  result,
-  pastResults,
-  interactive,
-  onPick,
-  onConfirm,
-  getSafeArea,
-}: GameMapProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const svgRef = useRef<SVGSVGElement>(null);
-  const zoomGroupRef = useRef<SVGGElement>(null);
-  const behaviorRef = useRef<ZoomBehavior<SVGSVGElement, unknown> | null>(null);
-  const transformRef = useRef<ZoomTransform>(zoomIdentity);
-  const size = useElementSize(containerRef);
-
-  const geo = useMemo(() => {
-    if (!size) return null;
-    const projection = fitProjection(region.createProjection(), basemap.fitObject, size, {
-      isWholeWorld: region.drawSphere,
+/** Keeps one MapLibre marker per key in sync with `points`. */
+function useMarkers(map: MaplibreMap | null, kind: MarkerKind, points: readonly { key: string; point: LonLat; title?: string }[]) {
+  const markers = useRef(new Map<string, Marker>());
+  useEffect(() => {
+    if (!map) return;
+    const current = markers.current;
+    let cancelled = false;
+    import("maplibre-gl").then((maplibregl) => {
+      if (cancelled) return;
+      const wanted = new Set(points.map((p) => p.key));
+      for (const [key, marker] of current) {
+        if (!wanted.has(key)) {
+          marker.remove();
+          current.delete(key);
+        }
+      }
+      for (const { key, point, title } of points) {
+        const existing = current.get(key);
+        if (existing) {
+          existing.setLngLat(toLngLat(point));
+          continue;
+        }
+        const marker = new maplibregl.Marker({ element: createMarkerElement(kind, title), anchor: kind === "guess" ? "bottom" : "center" })
+          .setLngLat(toLngLat(point))
+          .addTo(map);
+        current.set(key, marker);
+      }
     });
-    const path = geoPath(projection);
-    return { projection, path, extent: contentExtent(path, basemap.fitObject, size) };
-  }, [region, basemap, size]);
-
-  const projection = geo?.projection ?? null;
-  const path = geo?.path ?? null;
-  const translateExtent: Extent | null = geo?.extent ?? null;
-
-  const requestDraw = useBasemapCanvas({
-    canvasRef,
-    basemap,
-    projection,
-    size,
-    drawSphere: region.drawSphere,
-  });
-
-  // Pan & zoom: d3 redraws the canvas and moves the overlay without re-rendering React.
-  useEffect(() => {
-    const svg = svgRef.current;
-    const group = zoomGroupRef.current;
-    if (!svg || !group || !size || !translateExtent) return;
-
-    const behavior = zoom<SVGSVGElement, unknown>()
-      .scaleExtent([1, region.maxZoom])
-      .extent([[0, 0], [size.width, size.height]])
-      .translateExtent(translateExtent)
-      .on("zoom", (event: D3ZoomEvent<SVGSVGElement, unknown>) => {
-        transformRef.current = event.transform;
-        requestDraw(event.transform);
-        group.setAttribute("transform", event.transform.toString());
-        svg.style.setProperty("--k", String(event.transform.k));
-      });
-
-    const selection = select(svg);
-    selection.call(behavior).on("dblclick.zoom", null);
-    selection.call(behavior.transform, zoomIdentity);
-    behaviorRef.current = behavior;
-
     return () => {
-      selection.interrupt().on(".zoom", null);
-      behaviorRef.current = null;
+      cancelled = true;
     };
-  }, [size, translateExtent, region.maxZoom, requestDraw]);
+  }, [map, kind, points]);
 
-  // Frame the guess and the answer on reveal; zoom back out for the next round.
   useEffect(() => {
-    const svg = svgRef.current;
-    const behavior = behaviorRef.current;
-    if (!svg || !behavior || !projection || !size || !translateExtent) return;
+    const current = markers.current;
+    return () => {
+      for (const marker of current.values()) marker.remove();
+      current.clear();
+    };
+  }, [map]);
+}
 
-    const target = result
-      ? revealTransform(
-          projection,
-          [result.guess, result.answer],
-          size,
-          getSafeArea?.() ?? NO_SAFE_AREA,
-          translateExtent,
-          behavior.constrain(),
-        )
-      : zoomIdentity;
-    select(svg)
-      .transition()
-      .duration(prefersReducedMotion() ? 0 : ZOOM_DURATION_MS)
-      .call(behavior.transform, target);
-  }, [result, projection, size, translateExtent, getSafeArea]);
+export function GameMap({ roundKey, guess, result, pastResults, interactive, onPick, onConfirm, getSafeArea }: GameMapProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const padding = useCallback(() => {
+    const safe = getSafeArea?.() ?? NO_SAFE_AREA;
+    return { top: safe.top + EDGE_PADDING_PX / 2, bottom: safe.bottom + EDGE_PADDING_PX / 2 };
+  }, [getSafeArea]);
+  const map = useMaplibre(containerRef, padding);
 
-  const handleClick = (event: MouseEvent<SVGSVGElement>) => {
-    if (!interactive || !projection || !zoomGroupRef.current) return;
-    const lonLat = invertPoint(projection, pointer(event.nativeEvent, zoomGroupRef.current));
-    if (lonLat) onPick(lonLat);
-  };
+  // Latest callbacks for MapLibre's listeners, which are attached once.
+  const live = useRef({ interactive, onPick });
+  useEffect(() => {
+    live.current = { interactive, onPick };
+  }, [interactive, onPick]);
 
-  const handleKeyDown = (event: KeyboardEvent<SVGSVGElement>) => {
-    const svg = svgRef.current;
-    const behavior = behaviorRef.current;
-    if (!svg || !behavior || !projection || !size) return;
+  useEffect(() => {
+    if (!map) return;
+    const onClick = (event: { lngLat: { lng: number; lat: number } }) => {
+      if (live.current.interactive) live.current.onPick([event.lngLat.lng, event.lngLat.lat]);
+    };
+    map.on("click", onClick);
+    return () => {
+      map.off("click", onClick);
+    };
+  }, [map]);
 
+  const guessPoints = useMemo(() => (guess ? [{ key: roundKey, point: guess }] : []), [guess, roundKey]);
+  const answerPoints = useMemo(() => (result ? [{ key: result.target.id, point: result.answer }] : []), [result]);
+  const pastPoints = useMemo(
+    () => pastResults.map((past) => ({ key: past.target.id, point: past.answer, title: past.target.name })),
+    [pastResults],
+  );
+  useMarkers(map, "guess", guessPoints);
+  useMarkers(map, "answer", answerPoints);
+  useMarkers(map, "past", pastPoints);
+
+  // Dashed line between the guess and the answer; re-applied when the color scheme swaps the style.
+  useEffect(() => {
+    if (!map) return;
+    const apply = () => {
+      const source = map.getSource<GeoJSONSource>(REVEAL_SOURCE);
+      source?.setData(
+        result && result.distanceKm > 0
+          ? { type: "Feature", properties: {}, geometry: { type: "LineString", coordinates: [[...result.guess], [...result.answer]] } }
+          : { type: "FeatureCollection", features: [] },
+      );
+    };
+    apply();
+    map.on("style.load", apply);
+    return () => {
+      map.off("style.load", apply);
+    };
+  }, [map, result]);
+
+  // Frame the guess and the answer on reveal; back to the whole of France for the next round.
+  useEffect(() => {
+    if (!map) return;
+    const pad = padding();
+    const options = {
+      padding: { top: pad.top + EDGE_PADDING_PX, bottom: pad.bottom + EDGE_PADDING_PX, left: EDGE_PADDING_PX, right: EDGE_PADDING_PX },
+      duration: prefersReducedMotion() ? 0 : CAMERA_DURATION_MS,
+    };
+    if (result) {
+      map.fitBounds(revealBounds(result.guess, result.answer), { ...options, maxZoom: REVEAL_MAX_ZOOM });
+    } else {
+      map.fitBounds(FRANCE_BOUNDS, options);
+    }
+  }, [map, result, padding]);
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (!map) return;
     if (event.key === "+" || event.key === "=" || event.key === "-") {
       event.preventDefault();
-      const factor = event.key === "-" ? 1 / KEY_ZOOM_FACTOR : KEY_ZOOM_FACTOR;
-      select(svg).transition().duration(prefersReducedMotion() ? 0 : KEY_ZOOM_DURATION_MS).call(behavior.scaleBy, factor);
+      if (event.key === "-") map.zoomOut();
+      else map.zoomIn();
       return;
     }
-
     if (!interactive) return;
-
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
       if (guess) onConfirm();
       return;
     }
-
     const step = ARROW_STEPS[event.key];
     if (!step) return;
     event.preventDefault();
-
-    const t = transformRef.current;
-    const origin = guess ? projection(guess as [number, number]) : t.invert([size.width / 2, size.height / 2]);
-    if (!origin) return;
-    const delta = KEY_STEP_PX / t.k;
-    const lonLat = invertPoint(projection, [origin[0] + step[0] * delta, origin[1] + step[1] * delta]);
-    if (lonLat) onPick(lonLat);
+    const origin = map.project(guess ? toLngLat(guess) : map.getCenter());
+    const moved = map.unproject([origin.x + step[0] * KEY_STEP_PX, origin.y + step[1] * KEY_STEP_PX]);
+    onPick([moved.lng, moved.lat]);
   };
 
-  const background = region.drawSphere ? "var(--surface)" : "var(--map-ocean)";
-
   return (
-    <div ref={containerRef} className="absolute inset-0" style={{ background }}>
-      <canvas
-        ref={canvasRef}
-        className="pointer-events-none absolute inset-0 h-full w-full"
-        data-layers={basemap.levels[0]?.layers.length ?? 0}
-        aria-hidden
-      />
-      {size && path && projection && (
-        <svg
-          ref={svgRef}
-          className="map-svg absolute inset-0 block h-full w-full"
-          width={size.width}
-          height={size.height}
-          viewBox={`0 0 ${size.width} ${size.height}`}
-          data-interactive={interactive}
-          role="application"
-          aria-label={`${region.label} map`}
-          aria-describedby="map-instructions"
-          tabIndex={0}
-          onClick={handleClick}
-          onKeyDown={handleKeyDown}
-        >
-          <g ref={zoomGroupRef}>
-            {pastResults.map((past) =>
-              past.target.kind === "area" ? (
-                <path
-                  key={past.target.id}
-                  className="map-past-area"
-                  d={path(past.target.feature) ?? undefined}
-                  vectorEffect="non-scaling-stroke"
-                >
-                  <title>{past.target.name}</title>
-                </path>
-              ) : (
-                <MapMarker
-                  key={past.target.id}
-                  kind="past"
-                  point={past.answer}
-                  projection={projection}
-                  title={past.target.name}
-                />
-              ),
-            )}
-            {result?.target.kind === "area" && (
-              <path
-                className="map-answer-area"
-                d={path(result.target.feature) ?? undefined}
-                vectorEffect="non-scaling-stroke"
-              />
-            )}
-            {result && result.distanceKm > 0 && (
-              <path
-                className="map-line"
-                d={path({ type: "LineString", coordinates: [[...result.guess], [...result.answer]] }) ?? undefined}
-                vectorEffect="non-scaling-stroke"
-              />
-            )}
-            {result && result.target.kind === "point" && (
-              <MapMarker kind="answer" point={result.answer} projection={projection} />
-            )}
-            {guess && <MapMarker key={roundKey} kind="guess" point={guess} projection={projection} />}
-          </g>
-        </svg>
-      )}
+    // MapLibre sets `position: relative` on its container, so it gets its own inner element.
+    <div
+      className="game-map absolute inset-0 bg-(--map-ocean)"
+      role="application"
+      aria-label="Carte : France"
+      aria-describedby="map-instructions"
+      tabIndex={0}
+      data-interactive={interactive}
+      data-map-ready={map !== null}
+      onKeyDown={handleKeyDown}
+    >
+      <div ref={containerRef} className="h-full w-full" />
       <p id="map-instructions" className="sr-only">
-        Click to drop a pin, or use the arrow keys to move it. Press Enter to confirm, plus and minus
-        to zoom. Drag or scroll to pan and zoom.
+        Cliquez pour placer une épingle, ou déplacez-la avec les flèches. Entrée pour valider, plus et
+        moins pour zoomer. Faites glisser ou défilez pour vous déplacer et zoomer.
       </p>
     </div>
   );

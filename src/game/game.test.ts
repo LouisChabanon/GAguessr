@@ -1,25 +1,12 @@
 import { describe, expect, it } from "vitest";
-import type { Feature, Polygon } from "geojson";
 import { MAX_ROUND_SCORE } from "@/lib/geo/scoring";
-import type { CountryFeature } from "@/lib/geo/atlas";
 import type { Target } from "@/modes/types";
 import { evaluateGuess, totalScore } from "./evaluate";
 import { createInitialState, currentResult, currentTarget, gameReducer, type GameState } from "./gameReducer";
 import { pickTargets, roundCount } from "./pickTargets";
 
-const PARIS: Target = { kind: "point", id: "paris", name: "Paris", coords: [2.35, 48.86] };
-const LYON: Target = { kind: "point", id: "lyon", name: "Lyon", coords: [4.84, 45.76] };
-const square: Feature<Polygon> = {
-  type: "Feature",
-  properties: {},
-  geometry: { type: "Polygon", coordinates: [[[0, 0], [0, 1], [1, 1], [1, 0], [0, 0]]] },
-};
-const SQUARELAND: Target = {
-  kind: "area",
-  id: "squareland",
-  name: "Squareland",
-  feature: { ...square, properties: { name: "Squareland" } } as CountryFeature,
-};
+const PARIS: Target = { id: "paris", name: "Paris", coords: [2.35, 48.86] };
+const LYON: Target = { id: "lyon", name: "Lyon", coords: [4.84, 45.76] };
 
 describe("pickTargets", () => {
   it("picks distinct items without mutating the input", () => {
@@ -57,13 +44,6 @@ describe("evaluateGuess", () => {
     const miss = evaluateGuess(PARIS, [4.84, 45.76], 1000);
     expect(miss.distanceKm).toBeGreaterThan(380);
     expect(miss.answer).toEqual([2.35, 48.86]);
-  });
-
-  it("gives full points inside an area target and measures to the border outside", () => {
-    expect(evaluateGuess(SQUARELAND, [0.5, 0.5], 1000).score).toBe(MAX_ROUND_SCORE);
-    const outside = evaluateGuess(SQUARELAND, [2, 0], 1000);
-    expect(outside.answer).toEqual([1, 0]);
-    expect(outside.score).toBeLessThan(MAX_ROUND_SCORE);
   });
 
   it("totals scores", () => {

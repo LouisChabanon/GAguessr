@@ -12,9 +12,8 @@ export function generateStaticParams() {
 }
 
 export async function generateMetadata(props: PageProps<"/play/[mode]">): Promise<Metadata> {
-  const { mode: modeId } = await props.params;
-  const mode = getMode(modeId);
-  return mode ? { title: `${mode.title} · Pin it`, description: mode.description } : {};
+  const mode = getMode((await props.params).mode);
+  return mode ? { title: `${mode.title} · GAguessr`, description: mode.description } : {};
 }
 
 async function ModeGame({ params }: { params: ModeParams }) {

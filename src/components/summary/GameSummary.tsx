@@ -48,11 +48,11 @@ export function GameSummary({ modeTitle, results, total, record, onPlayAgain }: 
         </ol>
 
         <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-          <Link href="/" className={buttonClass("secondary")}>
-            All modes
+          <Link href="/" className={buttonClass("ghost", "h-11")}>
+            Accueil
           </Link>
           <button type="button" autoFocus className={buttonClass("primary")} onClick={onPlayAgain}>
-            Play again
+            Rejouer
           </button>
         </div>
       </section>
@@ -63,14 +63,14 @@ export function GameSummary({ modeTitle, results, total, record, onPlayAgain }: 
 function BestScoreNote({ record }: { record: ScoreRecord }) {
   if (record.isNewBest) {
     return (
-      <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-accent/12 px-2.5 py-1 text-xs font-medium text-accent">
-        {record.previousBest === null ? "First score recorded" : "New personal best"}
+      <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-accent/30 px-2.5 py-1 text-xs font-medium text-accent-text">
+        {record.previousBest === null ? "Premier score enregistré" : "Nouveau record personnel"}
       </p>
     );
   }
   return (
     <p className="mt-2 text-sm text-muted">
-      Personal best <span className="font-mono tabular-nums">{formatScore(record.previousBest ?? 0)}</span>
+      Record personnel <span className="font-mono tabular-nums">{formatScore(record.previousBest ?? 0)}</span>
     </p>
   );
 }

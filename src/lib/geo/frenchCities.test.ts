@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { readGeo } from "@/test/stubFetch";
 import { parseFrance } from "./france";
-import { FRENCH_CITIES, maxVisibleCityRank, parseFrenchCities } from "./frenchCities";
+import { FRENCH_CITIES, parseFrenchCities } from "./frenchCities";
 import { distanceToFeature } from "./nearest";
 
 /** Coastal cities (Brest, Le Havre, Nice…) vs. the simplified coastline. */
@@ -24,16 +24,5 @@ describe("French cities", () => {
 
   it("rejects malformed data", () => {
     expect(() => parseFrenchCities([{ name: "X", lat: 0, lon: 0, rank: 3 }])).toThrow();
-  });
-});
-
-describe("maxVisibleCityRank", () => {
-  it.each([
-    [300, 1],
-    [499, 1],
-    [500, 2],
-    [2400, 2],
-  ])("cities spanning %dpx → rank %d", (width, rank) => {
-    expect(maxVisibleCityRank(width)).toBe(rank);
   });
 });

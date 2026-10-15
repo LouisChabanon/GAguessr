@@ -38,7 +38,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
   switch (action.type) {
     case "loaded":
       if (action.targets.length === 0) {
-        return { ...state, status: "error", error: "No targets available for this mode." };
+        return { ...state, status: "error", error: "Aucun site disponible pour ce mode." };
       }
       return { ...createInitialState(state.scaleKm), status: "guessing", targets: action.targets };
 

@@ -1,26 +1,21 @@
 import { geoContains } from "d3-geo";
-import { afterEach, describe, expect, it, vi } from "vitest";
-import citiesData from "@/data/cities.json";
+import { describe, expect, it } from "vitest";
+import militaryData from "@/data/fr-military-nuclear.json";
 import plantsData from "@/data/fr-nuclear-plants.json";
-import { parseCountries } from "@/lib/geo/atlas";
+import researchData from "@/data/fr-nuclear-research.json";
 import { distanceToFeature } from "@/lib/geo/nearest";
 import { parseFrance } from "@/lib/geo/france";
-import { readGeo, stubGeoFetch } from "@/test/stubFetch";
-import { buildCityTargets } from "./cities";
-import { countryDisplayName } from "./country-names";
-import { buildCountryTargets } from "./countries";
-import { buildNuclearPlantTargets } from "./fr-nuclear-plants";
-import { GAME_MODES, getMode } from "./registry";
+import { readGeo } from "@/test/stubFetch";
+import { buildNuclearPlantTargets, frNuclearPlantsMode } from "./fr-nuclear-plants";
+import { frMilitaryNuclearMode, frNuclearResearchMode } from "./fr-nuclear-sites";
+import { DEFAULT_MODE, GAME_MODES, getMode } from "./registry";
+import { buildSiteTargets } from "./sites";
 import { slugify } from "./slug";
 import type { Target } from "./types";
 
-const countries = parseCountries(readGeo("countries-50m.json"));
 const france = parseFrance(readGeo("france.json"));
-const countryByName = new Map(countries.map((c) => [c.properties.name, c]));
 
-/** Coastal cities can fall just outside the simplified 1:50m coastline. */
-const COASTLINE_TOLERANCE_KM = 25;
-/** Coastal plants (Paluel, Gravelines…) sit right on the simplified coastline. */
+/** Coastal sites (Paluel, Île Longue…) sit right on the simplified coastline. */
 const PLANT_TOLERANCE_KM = 5;
 
 function expectUniqueIds(targets: readonly Target[]) {
@@ -30,48 +25,6 @@ function expectUniqueIds(targets: readonly Target[]) {
 describe("slugify", () => {
   it("strips accents and punctuation", () => {
     expect(slugify("São Tomé & Príncipe!")).toBe("sao-tome-principe");
-  });
-});
-
-describe("countryDisplayName", () => {
-  it("expands atlas abbreviations and passes others through", () => {
-    expect(countryDisplayName("Dem. Rep. Congo")).toBe("DR Congo");
-    expect(countryDisplayName("France")).toBe("France");
-  });
-});
-
-describe("countries mode", () => {
-  const targets = buildCountryTargets(countries);
-
-  it("keeps real countries and drops territories, specks and Antarctica", () => {
-    const names = targets.map((t) => t.name);
-    expect(names).toEqual(expect.arrayContaining(["France", "Peru", "Singapore", "United States"]));
-    expect(names).not.toEqual(expect.arrayContaining(["Antarctica"]));
-    expect(names).not.toContain("Puerto Rico");
-    expect(names).not.toContain("Monaco");
-    expect(targets.length).toBeGreaterThan(170);
-  });
-
-  it("has unique ids", () => expectUniqueIds(targets));
-});
-
-describe("cities dataset", () => {
-  const targets = buildCityTargets(citiesData);
-
-  it("has unique ids and plenty of cities", () => {
-    expectUniqueIds(targets);
-    expect(targets.length).toBeGreaterThanOrEqual(150);
-  });
-
-  it.each(citiesData)("$name lies in $country", ({ name, country, lat, lon }) => {
-    const feature = countryByName.get(country);
-    expect(feature, `unknown atlas country "${country}"`).toBeDefined();
-    const { distanceKm } = distanceToFeature([lon, lat], feature!);
-    expect(distanceKm, name).toBeLessThanOrEqual(COASTLINE_TOLERANCE_KM);
-  });
-
-  it("rejects malformed data", () => {
-    expect(() => buildCityTargets([{ name: "X", country: "Y", lat: 200, lon: 0 }])).toThrow();
   });
 });
 
@@ -85,7 +38,6 @@ describe("French nuclear plants dataset", () => {
   });
 
   it.each(targets)("$name is in metropolitan France", (target) => {
-    if (target.kind !== "point") throw new Error("expected point target");
     expect(distanceToFeature(target.coords, france.land).distanceKm).toBeLessThanOrEqual(PLANT_TOLERANCE_KM);
   });
 
@@ -99,29 +51,65 @@ describe("French nuclear plants dataset", () => {
     }
   });
 
-  it("gives no hint, and reveals river, region and reactors with the answer", () => {
+  it("gives no hint, and reveals river, region and reactor count with the answer", () => {
     const chinon = targets.find((t) => t.name === "Chinon");
     expect(chinon?.hint).toBeUndefined();
-    expect(chinon?.detail).toBe("Loire · Centre-Val de Loire · 4 reactors");
+    expect(chinon?.detail).toBe("Loire · Centre-Val de Loire · 4 réacteurs");
+    expect(chinon?.description).toMatch(/« la boule »/);
+  });
+});
+
+describe("nuclear plants mode", () => {
+  it("plays every plant in one game", async () => {
+    expect(frNuclearPlantsMode.roundsPerGame).toBe("all");
+    expect(await frNuclearPlantsMode.loadTargets()).toHaveLength(18);
+  });
+});
+
+const SITE_DATASETS = [
+  { mode: frNuclearResearchMode, data: researchData, count: 10 },
+  { mode: frMilitaryNuclearMode, data: militaryData, count: 18 },
+] as const;
+
+describe.each(SITE_DATASETS)("$mode.title dataset", ({ mode, data, count }) => {
+  const targets = buildSiteTargets(data);
+
+  it(`lists ${count} sites with unique ids`, async () => {
+    expect(targets).toHaveLength(count);
+    expectUniqueIds(targets);
+    expect(await mode.loadTargets()).toHaveLength(count);
+    expect(mode.roundsPerGame).toBe("all");
+  });
+
+  it.each(targets)("$name is in metropolitan France", (target) => {
+    expect(distanceToFeature(target.coords, france.land).distanceKm).toBeLessThanOrEqual(PLANT_TOLERANCE_KM);
+  });
+
+  it.each(data)("$name is in $region", ({ lon, lat, region }) => {
+    const closest = france.regions
+      .map((r) => ({ name: r.properties.name, d: distanceToFeature([lon, lat], r).distanceKm }))
+      .sort((a, b) => a.d - b.d)[0];
+    expect(closest.name).toBe(region);
+  });
+
+  it("reveals the site's role and department with the answer, with no hint", () => {
+    expect(targets[0].hint).toBeUndefined();
+    expect(targets[0].detail).toBe(`${data[0].role} · ${data[0].department}`);
+    expect(targets[0].description).toBe(data[0].description);
+  });
+});
+
+describe("site datasets", () => {
+  it("reject malformed rows", () => {
+    expect(() => buildSiteTargets([{ name: "X", region: "Y", department: "Z", role: "R", lat: 95, lon: 0 }])).toThrow();
   });
 });
 
 describe("registry", () => {
-  afterEach(() => vi.unstubAllGlobals());
-
-  it("plays every nuclear plant in one game", () => {
-    expect(getMode("fr-nuclear-plants")?.roundsPerGame).toBe("all");
-  });
-
-  it("has unique mode ids and finds modes by id", () => {
-    expect(new Set(GAME_MODES.map((m) => m.id)).size).toBe(GAME_MODES.length);
-    expect(getMode("cities")?.title).toBe("Cities");
-    expect(getMode("nope")).toBeUndefined();
-  });
-
-  it.each(GAME_MODES)("$id loads enough targets for a full game", async (mode) => {
-    stubGeoFetch();
-    const targets = await mode.loadTargets();
-    expect(targets.length).toBeGreaterThanOrEqual(mode.roundsPerGame === "all" ? 1 : mode.roundsPerGame);
+  it("lists the three modes, plants first, and finds them by id", () => {
+    expect(GAME_MODES.map((m) => m.id)).toEqual(["fr-nuclear-plants", "fr-nuclear-research", "fr-military-nuclear"]);
+    expect(getMode("fr-military-nuclear")).toBe(frMilitaryNuclearMode);
+    expect(getMode("countries")).toBeUndefined();
+    expect(DEFAULT_MODE).toBe(frNuclearPlantsMode);
   });
 });

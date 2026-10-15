@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Pin it — the map placement game",
-  description: "Place countries, cities and landmarks on a blank map. The closer you land, the more you score.",
+  title: "GAguessr — la carte de la France nucléaire",
+  description: "Placez sur la carte les centrales, centres de recherche et sites militaires nucléaires français. Plus vous visez juste, plus vous marquez."
 };
 
 export const viewport: Viewport = {
@@ -26,7 +26,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
+    <html lang="fr" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
       <body className="min-h-full font-sans">{children}</body>
     </html>
   );

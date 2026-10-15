@@ -2,7 +2,7 @@ import type { Feature, Point } from "geojson";
 import { z } from "zod";
 import citiesData from "@/data/fr-cities.json";
 
-/** 1 = always labelled, 2 = labelled once the map is large enough on screen. */
+/** 1 = always labelled, 2 = labelled once the map is zoomed in a little (see lib/map/style.ts). */
 export type CityRank = 1 | 2;
 
 export type CityFeature = Feature<Point, { name: string; rank: CityRank }>;
@@ -26,14 +26,3 @@ export function parseFrenchCities(input: unknown): CityFeature[] {
 }
 
 export const FRENCH_CITIES: readonly CityFeature[] = parseFrenchCities(citiesData);
-
-/** On-screen distance (px) from Brest to Strasbourg before secondary cities are labelled. */
-const SECONDARY_CITIES_MIN_SPAN_PX = 500;
-
-/**
- * Highest city rank to show. `citySpanPx` is the on-screen width of all the
- * cities at the current zoom: desktops show everything, phones after zooming in.
- */
-export function maxVisibleCityRank(citySpanPx: number): CityRank {
-  return citySpanPx >= SECONDARY_CITIES_MIN_SPAN_PX ? 2 : 1;
-}

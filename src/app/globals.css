@@ -10,20 +10,18 @@
   --panel-solid: oklch(100% 0 0);
 
   /* Semantic */
-  --accent: oklch(57% 0.22 263);
-  --accent-hover: oklch(51% 0.22 263);
-  --accent-ink: oklch(99% 0 0);
+  /* Yellow fills (buttons, pins) carry dark ink; yellow text uses the darker --accent-text for contrast. */
+  --accent: oklch(86% 0.17 92);
+  --accent-hover: oklch(81% 0.17 86);
+  --accent-ink: oklch(22% 0.03 85);
+  --accent-text: oklch(52% 0.11 82);
   --answer: oklch(62% 0.23 352);
   --great: oklch(62% 0.16 152);
   --good: oklch(72% 0.16 72);
   --poor: oklch(60% 0.2 27);
 
   /* Map */
-  --map-ocean: oklch(96.2% 0.008 245);
-  --map-land: oklch(89.5% 0.006 255);
-  --map-land-muted: oklch(93% 0.005 255);
-  --map-border: oklch(99.5% 0 0);
-  --map-river: oklch(68% 0.1 240);
+  --map-ocean: oklch(86.3% 0.03 243);
 
   /* Depth */
   --shadow-panel: 0 1px 2px oklch(0% 0 0 / 0.05), 0 12px 32px -12px oklch(25% 0.02 260 / 0.22);
@@ -45,19 +43,16 @@
     --panel: oklch(21% 0.014 262 / 0.92);
     --panel-solid: oklch(21% 0.014 262);
 
-    --accent: oklch(68% 0.18 263);
-    --accent-hover: oklch(74% 0.16 263);
-    --accent-ink: oklch(16% 0.02 262);
+    --accent: oklch(87% 0.17 95);
+    --accent-hover: oklch(91% 0.14 98);
+    --accent-ink: oklch(20% 0.03 85);
+    --accent-text: oklch(87% 0.17 95);
     --answer: oklch(72% 0.2 352);
     --great: oklch(74% 0.16 152);
     --good: oklch(80% 0.15 78);
     --poor: oklch(70% 0.18 27);
 
-    --map-ocean: oklch(19.5% 0.014 262);
-    --map-land: oklch(30% 0.016 262);
-    --map-land-muted: oklch(24.5% 0.014 262);
-    --map-border: oklch(42% 0.02 262);
-    --map-river: oklch(58% 0.1 240);
+    --map-ocean: oklch(19.6% 0.025 260);
 
     --shadow-panel: 0 1px 2px oklch(0% 0 0 / 0.3), 0 12px 32px -12px oklch(0% 0 0 / 0.6);
     --shadow-pop: 0 1px 2px oklch(0% 0 0 / 0.3), 0 24px 48px -16px oklch(0% 0 0 / 0.7);
@@ -74,6 +69,7 @@
   --color-accent: var(--accent);
   --color-accent-hover: var(--accent-hover);
   --color-accent-ink: var(--accent-ink);
+  --color-accent-text: var(--accent-text);
   --color-answer: var(--answer);
   --color-great: var(--great);
   --color-good: var(--good);
@@ -90,7 +86,7 @@ body {
 }
 
 :focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--accent-text);
   outline-offset: 2px;
 }
 
@@ -116,43 +112,30 @@ body {
 
 /* ---------- Map ---------- */
 
-.map-svg {
+.game-map {
   touch-action: none;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
 }
 
-.map-svg[data-interactive="true"] {
+.game-map[data-interactive="true"] .maplibregl-canvas {
   cursor: crosshair;
 }
 
-.map-svg:focus-visible {
+.game-map:focus-visible {
   outline-offset: -4px;
 }
 
-.map-past-area {
-  fill: var(--answer);
-  fill-opacity: 0.14;
-  stroke: var(--answer);
-  stroke-opacity: 0.4;
-  stroke-width: 1;
-}
-
-.map-answer-area {
-  fill: var(--answer);
-  fill-opacity: 0.32;
-  stroke: var(--answer);
-  stroke-width: 1.5;
-  animation: fade-in var(--duration-normal) ease-out both;
-}
-
-/* Markers live inside the zoomed group: counter-scale so they keep a constant size. */
 .map-marker {
-  scale: calc(1 / var(--k, 1));
+  pointer-events: none;
+}
+
+.map-marker[data-kind="past"] {
+  pointer-events: auto;
 }
 
 .map-marker-body {
-  transform-box: fill-box;
+  line-height: 0;
   transform-origin: 50% 100%;
 }
 
@@ -165,14 +148,15 @@ body {
   animation: pop-in 320ms var(--ease-spring) 420ms both;
 }
 
-.map-line {
-  fill: none;
-  stroke: var(--ink);
-  stroke-width: 1.5;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-dasharray: 2 4;
-  animation: fade-in 400ms var(--ease-out-expo) 80ms both;
+/* MapLibre's attribution, toned down to match the HUD. */
+.game-map .maplibregl-ctrl-attrib {
+  background: var(--panel);
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.game-map .maplibregl-ctrl-attrib a {
+  color: inherit;
 }
 
 @keyframes pin-drop {
@@ -203,4 +187,18 @@ body {
     animation-delay: 0ms !important;
     transition-duration: 1ms !important;
   }
+}
+
+/* ---------- Site photos ---------- */
+
+.photo-placeholder {
+  background: repeating-linear-gradient(135deg, transparent 0 6px, var(--line) 6px 7px);
+}
+
+.photo-dialog::backdrop {
+  background: oklch(0% 0 0 / 0.6);
+}
+
+.photo-dialog[open] {
+  animation: enter-up var(--duration-normal) var(--ease-out-expo) both;
 }

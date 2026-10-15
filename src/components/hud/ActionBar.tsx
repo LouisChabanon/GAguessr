@@ -24,10 +24,10 @@ export function ActionBar({ hasGuess, result, isLastRound, onConfirm, onNext, re
       ) : (
         <div className="panel enter-up pointer-events-auto flex items-center gap-4 rounded-2xl py-2 pr-2 pl-5">
           <p className="text-sm text-muted">
-            {hasGuess ? "Happy with your pin?" : "Click the map to drop your pin"}
+            {hasGuess ? "Content de votre épingle ?" : "Cliquez sur la carte pour placer votre épingle"}
           </p>
           <button type="button" className={buttonClass("primary")} disabled={!hasGuess} onClick={onConfirm}>
-            Confirm
+            Valider
           </button>
         </div>
       )}
@@ -43,7 +43,6 @@ interface RoundResultPanelProps {
 
 function RoundResultPanel({ result, isLastRound, onNext }: RoundResultPanelProps) {
   const tier = scoreTier(result.score);
-  const inside = result.distanceKm === 0 && result.target.kind === "area";
 
   return (
     <section
@@ -53,13 +52,18 @@ function RoundResultPanel({ result, isLastRound, onNext }: RoundResultPanelProps
     >
       <div className="flex items-end justify-between gap-4">
         <div className="min-w-0">
-          <p className="truncate text-sm text-muted">
+          <p className="truncate text-sm font-medium">
             <span className="mr-1.5 inline-block size-2 rounded-full bg-answer align-middle" aria-hidden />
             {result.target.name}
-            {result.target.detail && <span className="text-muted/80"> · {result.target.detail}</span>}
           </p>
+          {result.target.detail && <p className="mt-0.5 text-xs text-pretty text-muted">{result.target.detail}</p>}
+          {result.target.description && (
+            <p className="mt-1.5 text-sm text-pretty" data-testid="round-description">
+              {result.target.description}
+            </p>
+          )}
           <p className="mt-1 font-mono text-2xl font-medium tracking-tight tabular-nums">
-            {inside ? "Inside!" : formatDistance(result.distanceKm)}
+            {formatDistance(result.distanceKm)}
           </p>
         </div>
         <p
@@ -78,7 +82,7 @@ function RoundResultPanel({ result, isLastRound, onNext }: RoundResultPanelProps
         className={buttonClass("primary", "mt-4 w-full")}
         onClick={onNext}
       >
-        {isLastRound ? "See results" : "Next round"}
+        {isLastRound ? "Voir les résultats" : "Manche suivante"}
       </button>
     </section>
   );

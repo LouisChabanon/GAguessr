@@ -1,33 +1,35 @@
-import type { CountryFeature } from "@/lib/geo/atlas";
 import type { LonLat } from "@/lib/geo/distance";
-import type { RegionId } from "@/lib/geo/regions";
 
-interface TargetBase {
+/** A freely licensed photo of the site, with the attribution its license requires. */
+export interface TargetPhoto {
+  src: string;
+  width: number;
+  height: number;
+  author: string;
+  license: string;
+  licenseUrl: string | null;
+  /** Wikimedia Commons page of the original file. */
+  sourceUrl: string;
+}
+
+export interface Target {
   id: string;
   name: string;
   /** Short context shown under the name while guessing (country, river…). */
   hint?: string;
   /** Extra fact revealed with the answer. */
   detail?: string;
-}
-
-export interface PointTarget extends TargetBase {
-  kind: "point";
+  /** One-sentence description of the site, revealed with the answer. */
+  description?: string;
   coords: LonLat;
+  /** Missing when no free photo of the site exists (most military sites). */
+  photo?: TargetPhoto;
 }
-
-export interface AreaTarget extends TargetBase {
-  kind: "area";
-  feature: CountryFeature;
-}
-
-export type Target = PointTarget | AreaTarget;
 
 export interface GameModeMeta {
   id: string;
   title: string;
   description: string;
-  region: RegionId;
   /** Distance (km) at which a guess keeps ~37% of the points. */
   scaleKm: number;
   /** A fixed number of rounds, or "all" to play every target once. */

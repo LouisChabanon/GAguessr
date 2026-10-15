@@ -1,164 +1,20 @@
 [
- {
-  "name": "Gravelines",
-  "region": "Hauts-de-France",
-  "department": "Nord",
-  "waterSource": "North Sea coast",
-  "reactors": 6,
-  "lat": 51.015,
-  "lon": 2.136
- },
- {
-  "name": "Penly",
-  "region": "Normandie",
-  "department": "Seine-Maritime",
-  "waterSource": "English Channel coast",
-  "reactors": 2,
-  "lat": 49.977,
-  "lon": 1.212
- },
- {
-  "name": "Paluel",
-  "region": "Normandie",
-  "department": "Seine-Maritime",
-  "waterSource": "English Channel coast",
-  "reactors": 4,
-  "lat": 49.858,
-  "lon": 0.636
- },
- {
-  "name": "Flamanville",
-  "region": "Normandie",
-  "department": "Manche",
-  "waterSource": "English Channel coast",
-  "reactors": 3,
-  "lat": 49.536,
-  "lon": -1.882
- },
- {
-  "name": "Chooz",
-  "region": "Grand Est",
-  "department": "Ardennes",
-  "waterSource": "Meuse",
-  "reactors": 2,
-  "lat": 50.09,
-  "lon": 4.789
- },
- {
-  "name": "Cattenom",
-  "region": "Grand Est",
-  "department": "Moselle",
-  "waterSource": "Moselle",
-  "reactors": 4,
-  "lat": 49.416,
-  "lon": 6.218
- },
- {
-  "name": "Nogent-sur-Seine",
-  "region": "Grand Est",
-  "department": "Aube",
-  "waterSource": "Seine",
-  "reactors": 2,
-  "lat": 48.515,
-  "lon": 3.518
- },
- {
-  "name": "Dampierre-en-Burly",
-  "region": "Centre-Val de Loire",
-  "department": "Loiret",
-  "waterSource": "Loire",
-  "reactors": 4,
-  "lat": 47.733,
-  "lon": 2.517
- },
- {
-  "name": "Belleville-sur-Loire",
-  "region": "Centre-Val de Loire",
-  "department": "Cher",
-  "waterSource": "Loire",
-  "reactors": 2,
-  "lat": 47.51,
-  "lon": 2.875
- },
- {
-  "name": "Saint-Laurent-des-Eaux",
-  "region": "Centre-Val de Loire",
-  "department": "Loir-et-Cher",
-  "waterSource": "Loire",
-  "reactors": 2,
-  "lat": 47.72,
-  "lon": 1.58
- },
- {
-  "name": "Chinon",
-  "region": "Centre-Val de Loire",
-  "department": "Indre-et-Loire",
-  "waterSource": "Loire",
-  "reactors": 4,
-  "lat": 47.231,
-  "lon": 0.17
- },
- {
-  "name": "Civaux",
-  "region": "Nouvelle-Aquitaine",
-  "department": "Vienne",
-  "waterSource": "Vienne",
-  "reactors": 2,
-  "lat": 46.457,
-  "lon": 0.653
- },
- {
-  "name": "Le Blayais",
-  "region": "Nouvelle-Aquitaine",
-  "department": "Gironde",
-  "waterSource": "Gironde estuary",
-  "reactors": 4,
-  "lat": 45.256,
-  "lon": -0.693
- },
- {
-  "name": "Golfech",
-  "region": "Occitanie",
-  "department": "Tarn-et-Garonne",
-  "waterSource": "Garonne",
-  "reactors": 2,
-  "lat": 44.106,
-  "lon": 0.845
- },
- {
-  "name": "Tricastin",
-  "region": "Auvergne-Rhône-Alpes",
-  "department": "Drôme",
-  "waterSource": "Rhône",
-  "reactors": 4,
-  "lat": 44.33,
-  "lon": 4.732
- },
- {
-  "name": "Cruas-Meysse",
-  "region": "Auvergne-Rhône-Alpes",
-  "department": "Ardèche",
-  "waterSource": "Rhône",
-  "reactors": 4,
-  "lat": 44.633,
-  "lon": 4.756
- },
- {
-  "name": "Saint-Alban-du-Rhône",
-  "region": "Auvergne-Rhône-Alpes",
-  "department": "Isère",
-  "waterSource": "Rhône",
-  "reactors": 2,
-  "lat": 45.404,
-  "lon": 4.755
- },
- {
-  "name": "Bugey",
-  "region": "Auvergne-Rhône-Alpes",
-  "department": "Ain",
-  "waterSource": "Rhône",
-  "reactors": 4,
-  "lat": 45.798,
-  "lon": 5.271
- }
+  {"name": "Gravelines", "region": "Hauts-de-France", "department": "Nord", "waterSource": "Littoral de la mer du Nord", "reactors": 6, "description": "Plus grande centrale nucléaire d'Europe de l'Ouest, avec six réacteurs alignés face à la mer du Nord.", "lat": 51.015, "lon": 2.136, "wikipedia": "Centrale nucléaire de Gravelines"},
+  {"name": "Penly", "region": "Normandie", "department": "Seine-Maritime", "waterSource": "Littoral de la Manche", "reactors": 2, "description": "Retenue pour accueillir la première paire de réacteurs EPR2 du nouveau programme nucléaire français.", "lat": 49.977, "lon": 1.212, "wikipedia": "Centrale nucléaire de Penly"},
+  {"name": "Paluel", "region": "Normandie", "department": "Seine-Maritime", "waterSource": "Littoral de la Manche", "reactors": 4, "lat": 49.858, "lon": 0.636, "wikipedia": "Centrale nucléaire de Paluel"},
+  {"name": "Flamanville", "region": "Normandie", "department": "Manche", "waterSource": "Littoral de la Manche", "reactors": 3, "description": "Elle accueille l'EPR Flamanville 3, raccordé au réseau en décembre 2024 avec douze ans de retard.", "lat": 49.536, "lon": -1.882, "wikipedia": "Centrale nucléaire de Flamanville"},
+  {"name": "Chooz", "region": "Grand Est", "department": "Ardennes", "waterSource": "Meuse", "reactors": 2, "description": "Enclavée dans la pointe de Givet, presque entourée par la Belgique, elle abrite deux réacteurs N4 de 1 450 MW, parmi les plus puissants du parc.", "lat": 50.09, "lon": 4.789, "wikipedia": "Centrale nucléaire de Chooz"},
+  {"name": "Cattenom", "region": "Grand Est", "department": "Moselle", "waterSource": "Moselle", "reactors": 4, "lat": 49.416, "lon": 6.218, "wikipedia": "Centrale nucléaire de Cattenom"},
+  {"name": "Nogent-sur-Seine", "region": "Grand Est", "department": "Aube", "waterSource": "Seine", "reactors": 2, "description": "La centrale la plus proche de Paris, à une centaine de kilomètres en amont sur la Seine.", "lat": 48.515, "lon": 3.518, "wikipedia": "Centrale nucléaire de Nogent"},
+  {"name": "Dampierre-en-Burly", "region": "Centre-Val de Loire", "department": "Loiret", "waterSource": "Loire", "reactors": 4, "lat": 47.733, "lon": 2.517, "wikipedia": "Centrale nucléaire de Dampierre"},
+  {"name": "Belleville-sur-Loire", "region": "Centre-Val de Loire", "department": "Cher", "waterSource": "Loire", "reactors": 2, "lat": 47.51, "lon": 2.875, "wikipedia": "Centrale nucléaire de Belleville"},
+  {"name": "Saint-Laurent-des-Eaux", "region": "Centre-Val de Loire", "department": "Loir-et-Cher", "waterSource": "Loire", "reactors": 2, "description": "Théâtre en 1969 et 1980 des deux accidents nucléaires les plus graves de France, classés au niveau 4.", "lat": 47.72, "lon": 1.58, "wikipedia": "Centrale nucléaire de Saint-Laurent"},
+  {"name": "Chinon", "region": "Centre-Val de Loire", "department": "Indre-et-Loire", "waterSource": "Loire", "reactors": 4, "description": "Le premier réacteur d'EDF, surnommé « la boule », y a divergé en 1962.", "lat": 47.231, "lon": 0.17, "wikipedia": "Centrale nucléaire de Chinon"},
+  {"name": "Civaux", "region": "Nouvelle-Aquitaine", "department": "Vienne", "waterSource": "Vienne", "reactors": 2, "description": "Ses deux réacteurs N4, mis en service en 1997 et 1999, ont été les derniers construits avant l'EPR.", "lat": 46.457, "lon": 0.653, "wikipedia": "Centrale nucléaire de Civaux"},
+  {"name": "Le Blayais", "region": "Nouvelle-Aquitaine", "department": "Gironde", "waterSource": "Estuaire de la Gironde", "reactors": 4, "description": "Partiellement inondée lors de la tempête de décembre 1999, elle a poussé à renforcer la protection de tout le parc.", "lat": 45.256, "lon": -0.693, "wikipedia": "Centrale nucléaire du Blayais"},
+  {"name": "Golfech", "region": "Occitanie", "department": "Tarn-et-Garonne", "waterSource": "Garonne", "reactors": 2, "lat": 44.106, "lon": 0.845, "wikipedia": "Centrale nucléaire de Golfech"},
+  {"name": "Tricastin", "region": "Auvergne-Rhône-Alpes", "department": "Drôme", "waterSource": "Rhône", "reactors": 4, "description": "Au cœur d'une vaste plateforme industrielle où Orano enrichit l'uranium dans l'usine Georges-Besse II.", "lat": 44.33, "lon": 4.732, "wikipedia": "Centrale nucléaire du Tricastin"},
+  {"name": "Cruas-Meysse", "region": "Auvergne-Rhône-Alpes", "department": "Ardèche", "waterSource": "Rhône", "reactors": 4, "lat": 44.633, "lon": 4.756, "wikipedia": "Centrale nucléaire de Cruas"},
+  {"name": "Saint-Alban-du-Rhône", "region": "Auvergne-Rhône-Alpes", "department": "Isère", "waterSource": "Rhône", "reactors": 2, "lat": 45.404, "lon": 4.755, "wikipedia": "Centrale nucléaire de Saint-Alban"},
+  {"name": "Bugey", "region": "Auvergne-Rhône-Alpes", "department": "Ain", "waterSource": "Rhône", "reactors": 4, "description": "Doyenne des centrales en activité depuis la fermeture de Fessenheim, à 35 km de Lyon.", "lat": 45.798, "lon": 5.271, "wikipedia": "Centrale nucléaire du Bugey"}
 ]

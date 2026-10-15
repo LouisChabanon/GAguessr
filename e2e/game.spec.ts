@@ -1,13 +1,20 @@
 import { expect, test, type Page } from "@playwright/test";
 
 const MODES = [
-  { id: "countries", title: "Countries" },
-  { id: "cities", title: "Cities" },
-  { id: "fr-nuclear-plants", title: "French nuclear plants" },
+  { id: "fr-nuclear-plants", title: "Centrales nucléaires", sites: 18 },
+  { id: "fr-nuclear-research", title: "Recherche et réacteurs", sites: 10 },
+  { id: "fr-military-nuclear", title: "Sites militaires", sites: 18 },
 ] as const;
+const PLANTS = MODES[0];
+const RESEARCH = MODES[1];
+
+/** French number formatting groups thousands with a narrow no-break space. */
+const points = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
 
 async function dropPinAtMapCentre(page: Page) {
   const map = page.getByRole("application");
+  // MapLibre only handles clicks once its style has loaded.
+  await expect(map).toHaveAttribute("data-map-ready", "true", { timeout: 20_000 });
   const box = await map.boundingBox();
   if (!box) throw new Error("map not rendered");
   // Slightly below centre keeps clear of the top HUD on every viewport.
@@ -17,110 +24,137 @@ async function dropPinAtMapCentre(page: Page) {
 
 async function playRound(page: Page, isLast: boolean) {
   await dropPinAtMapCentre(page);
-  await page.getByRole("button", { name: "Confirm" }).click();
+  await page.getByRole("button", { name: "Valider" }).click();
   await expect(page.getByTestId("round-result")).toBeVisible();
-  await page.getByRole("button", { name: isLast ? "See results" : "Next round" }).click();
+  await page.getByRole("button", { name: isLast ? "Voir les résultats" : "Manche suivante" }).click();
 }
 
-test("home lists every game mode", async ({ page }) => {
+async function playFullGame(page: Page, rounds: number) {
+  for (let round = 1; round <= rounds; round++) {
+    await expect(page.getByText(`${round}/${rounds}`)).toBeVisible();
+    await playRound(page, round === rounds);
+  }
+  const summary = page.getByTestId("game-summary");
+  await expect(summary).toBeVisible();
+  return summary;
+}
+
+test("home lists the three nuclear modes", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByRole("heading", { level: 1 })).toContainText("Put the world");
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("Placez les centrales nucléaires");
   for (const mode of MODES) {
-    await expect(page.getByRole("link", { name: new RegExp(mode.title) })).toHaveAttribute(
+    await expect(page.getByRole("link", { name: new RegExp(`${mode.title}.*${mode.sites} sites`) })).toHaveAttribute(
       "href",
       `/play/${mode.id}`,
     );
   }
 });
 
+test("/play defaults to the power plants", async ({ page }) => {
+  await page.goto("/play");
+  await expect(page).toHaveURL(`/play/${PLANTS.id}`);
+});
+
 for (const mode of MODES) {
-  test(`${mode.title}: a round can be played`, async ({ page }) => {
+  test(`${mode.title}: a round reveals the site's role, without hints`, async ({ page }) => {
     await page.goto(`/play/${mode.id}`);
-    await expect(page.getByText("Find", { exact: true })).toBeVisible();
-    const confirm = page.getByRole("button", { name: "Confirm" });
+    await expect(page.getByText(`1/${mode.sites}`)).toBeVisible();
+    await expect(page.getByRole("application")).toHaveAttribute("data-map-ready", "true", { timeout: 20_000 });
+    await expect(page.locator(".maplibregl-canvas")).toBeVisible();
+    const banner = page.getByRole("heading", { level: 1 }).locator("..");
+    await expect(banner.locator("p")).toHaveCount(1); // just the "Trouvez" eyebrow, no hint line
+    const confirm = page.getByRole("button", { name: "Valider" });
     await expect(confirm).toBeDisabled();
 
     await dropPinAtMapCentre(page);
     await confirm.click();
-
-    await expect(page.getByTestId("round-result")).toBeVisible();
-    await expect(page.getByTestId("round-score")).toHaveText(/^\+[\d,]+$/);
+    await expect(page.getByTestId("round-result")).toContainText("·");
+    await expect(page.getByTestId("round-score")).toHaveText(/^\+[\d\u202f]+$/);
   });
 }
 
-test("a full game ends with a summary and saves the best score", async ({ page }) => {
-  await page.goto("/play/cities");
-  for (let round = 1; round <= 10; round++) {
-    await expect(page.getByText(`${round}/10`)).toBeVisible();
-    await playRound(page, round === 10);
-  }
-
-  const summary = page.getByTestId("game-summary");
-  await expect(summary).toBeVisible();
-  await expect(summary.getByRole("listitem")).toHaveCount(10);
-  await expect(summary).toContainText("First score recorded");
-  const total = (await summary.getByRole("heading").textContent())?.split("/")[0].trim();
-
-  await summary.getByRole("link", { name: "All modes" }).click();
-  await expect(page).toHaveURL("/");
-  await page.reload();
-  await expect(page.getByTestId("best-cities")).toHaveText(total ?? "");
-});
-
-test("the nuclear plants game covers all 18 plants, and play again restarts it", async ({ page }) => {
-  test.setTimeout(90_000);
-  await page.goto("/play/fr-nuclear-plants");
-  for (let round = 1; round <= 18; round++) {
-    await expect(page.getByText(`${round}/18`)).toBeVisible();
-    await playRound(page, round === 18);
-  }
-  const summary = page.getByTestId("game-summary");
-  await expect(summary.getByRole("listitem")).toHaveCount(18);
-  await expect(summary).toContainText("90,000");
-  await page.getByRole("button", { name: "Play again" }).click();
-  await expect(page.getByText("1/18")).toBeVisible();
-  await expect(page.getByTestId("total-score")).toHaveText("0");
-});
-
-test("the map is keyboard playable", async ({ page, isMobile }) => {
-  test.skip(isMobile, "keyboard flow is desktop-only");
-  await page.goto("/play/countries");
-  const map = page.getByRole("application");
-  await map.focus();
-  await page.keyboard.press("ArrowRight");
-  await expect(page.getByTestId("marker-guess")).toBeVisible();
-  await page.keyboard.press("Enter");
-  await expect(page.getByTestId("round-result")).toBeVisible();
-  // Focus moves to "Next round", so Enter advances.
-  await page.keyboard.press("Enter");
-  await expect(page.getByText("2/10")).toBeVisible();
-});
-
-// The play route streams behind Suspense, so the status is already 200 when
-// notFound() fires (documented Next.js behaviour); the not-found UI still renders.
-test("unknown modes render the not-found page", async ({ page }) => {
-  await page.goto("/play/not-a-mode");
-  await expect(page.getByText(/could not be found/i)).toBeVisible();
-  await expect(page.locator('meta[name="robots"]').first()).toHaveAttribute("content", /noindex/);
-});
-
 test("revealed answers stay on the map in later rounds", async ({ page }) => {
-  await page.goto("/play/cities");
+  await page.goto(`/play/${PLANTS.id}`);
   await playRound(page, false);
-  await expect(page.getByText("2/10")).toBeVisible();
+  await expect(page.getByText(`2/${PLANTS.sites}`)).toBeVisible();
   await expect(page.getByTestId("marker-past")).toHaveCount(1);
   await playRound(page, false);
   await expect(page.getByTestId("marker-past")).toHaveCount(2);
 });
 
-test("the French plants map draws rivers, regions and cities on canvas, without hints", async ({ page }) => {
-  await page.goto("/play/fr-nuclear-plants");
-  const canvas = page.locator("canvas");
-  await expect(canvas).toHaveAttribute("data-layers", "5");
-  const banner = page.getByRole("heading", { level: 1 }).locator("..");
-  await expect(banner.locator("p")).toHaveCount(1); // just the "Find" eyebrow, no hint line
+test("the map is keyboard playable", async ({ page, isMobile }) => {
+  test.skip(isMobile, "keyboard flow is desktop-only");
+  await page.goto(`/play/${PLANTS.id}`);
+  const map = page.getByRole("application");
+  await expect(map).toHaveAttribute("data-map-ready", "true", { timeout: 20_000 });
+  await map.focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(page.getByTestId("marker-guess")).toBeVisible();
+  await page.keyboard.press("Enter");
+  await expect(page.getByTestId("round-result")).toBeVisible();
+  // Focus moves to "Manche suivante", so Enter advances.
+  await page.keyboard.press("Enter");
+  await expect(page.getByText(`2/${PLANTS.sites}`)).toBeVisible();
+});
 
+test("a full game saves the local best, shown on the home page", async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.goto(`/play/${PLANTS.id}`);
+  const summary = await playFullGame(page, PLANTS.sites);
+  await expect(summary.getByRole("listitem")).toHaveCount(PLANTS.sites);
+  await expect(summary).toContainText(points(90_000));
+  await expect(summary).toContainText("Premier score enregistré");
+  const total = (await summary.getByRole("heading").textContent())?.split("/")[0].trim() ?? "";
+
+  await summary.getByRole("link", { name: "Accueil" }).click();
+  await expect(page).toHaveURL("/");
+  await expect(page.getByTestId(`best-${PLANTS.id}`)).toHaveText(total);
+});
+
+test("play again restarts the game", async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.goto(`/play/${RESEARCH.id}`);
+  await playFullGame(page, RESEARCH.sites);
+  await page.getByRole("button", { name: "Rejouer" }).click();
+  await expect(page.getByText(`1/${RESEARCH.sites}`)).toBeVisible();
+  await expect(page.getByTestId("total-score")).toHaveText("0");
+});
+
+test("unknown modes render the not-found page", async ({ page }) => {
+  await page.goto("/play/countries");
+  await expect(page.getByText("Page introuvable")).toBeVisible();
+});
+
+test("each plant shows its photo, which opens with its credits", async ({ page }) => {
+  await page.goto(`/play/${PLANTS.id}`);
+  const thumbnail = page.getByTestId("site-photo");
+  await expect(thumbnail).toBeVisible();
+  await expect(thumbnail.locator("img")).toHaveJSProperty("complete", true);
+
+  await thumbnail.click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toBeVisible();
+  await expect(dialog).toContainText("Wikimedia Commons");
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+
+  // The photo stays while the answer is revealed.
   await dropPinAtMapCentre(page);
-  await page.getByRole("button", { name: "Confirm" }).click();
-  await expect(page.getByTestId("round-result")).toContainText(/reactors/);
+  await page.getByRole("button", { name: "Valider" }).click();
+  await expect(page.getByTestId("site-photo")).toBeVisible();
+});
+
+test("the credits page lists every site, with a placeholder where no free photo exists", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("link", { name: "Crédits photos" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "Crédits photos" })).toBeVisible();
+  await expect(page.getByRole("listitem")).toHaveCount(MODES.reduce((sum, mode) => sum + mode.sites, 0));
+  await expect(page.getByText("Aucune photo libre de droits de ce site.")).toHaveCount(7);
+});
+
+test("the map credits OpenFreeMap and OpenStreetMap", async ({ page }) => {
+  await page.goto(`/play/${PLANTS.id}`);
+  await expect(page.getByRole("application")).toHaveAttribute("data-map-ready", "true", { timeout: 20_000 });
+  await expect(page.locator(".maplibregl-ctrl-attrib")).toContainText("OpenStreetMap");
+  await expect(page.locator(".maplibregl-ctrl-attrib")).toContainText("OpenFreeMap");
 });

@@ -1,16 +1,16 @@
 "use client";
 
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { ActionBar } from "@/components/hud/ActionBar";
 import { TargetBanner } from "@/components/hud/TargetBanner";
 import { GameMap, type SafeArea } from "@/components/map/GameMap";
 import { MapLoading } from "./MapLoading";
+import { preloadPhoto } from "@/components/photo/SitePhoto";
 import { GameSummary } from "@/components/summary/GameSummary";
 import { buttonClass } from "@/components/ui/button";
 import { totalScore } from "@/game/evaluate";
 import { currentResult, currentTarget } from "@/game/gameReducer";
 import { useGame } from "@/hooks/useGame";
-import { REGIONS } from "@/lib/geo/regions";
 import { getMode } from "@/modes/registry";
 
 interface GameProps {
@@ -18,10 +18,10 @@ interface GameProps {
 }
 
 export function Game({ modeId }: GameProps) {
+  // Modes hold functions, so the client looks them up by id rather than receiving them as props.
   const mode = getMode(modeId);
   if (!mode) throw new Error(`Unknown game mode "${modeId}"`);
-
-  const { state, basemap, record, place, confirm, next, restart } = useGame(mode);
+  const { state, record, place, confirm, next, restart } = useGame(mode);
   const topBarRef = useRef<HTMLElement>(null);
   const bottomBarRef = useRef<HTMLElement>(null);
   const getSafeArea = useCallback(
@@ -31,8 +31,9 @@ export function Game({ modeId }: GameProps) {
     }),
     [],
   );
-  const region = REGIONS[mode.region];
   const target = currentTarget(state);
+  const nextPhoto = state.targets[state.roundIndex + 1]?.photo;
+  useEffect(() => preloadPhoto(nextPhoto), [nextPhoto]);
   const result = currentResult(state);
   const total = totalScore(state.results);
   // While revealed, the last result is the current round's: it gets the full treatment.
@@ -41,20 +42,16 @@ export function Game({ modeId }: GameProps) {
 
   return (
     <div className="absolute inset-0">
-      {basemap && (
-        <GameMap
-          region={region}
-          basemap={basemap}
-          roundKey={target?.id ?? "none"}
-          guess={state.guess}
-          result={result}
-          pastResults={pastResults}
-          interactive={state.status === "guessing"}
-          onPick={place}
-          onConfirm={confirm}
-          getSafeArea={getSafeArea}
-        />
-      )}
+      <GameMap
+        roundKey={target?.id ?? "none"}
+        guess={state.guess}
+        result={result}
+        pastResults={pastResults}
+        interactive={state.status === "guessing"}
+        onPick={place}
+        onConfirm={confirm}
+        getSafeArea={getSafeArea}
+      />
 
       {isPlaying && (
         <>
@@ -82,10 +79,10 @@ export function Game({ modeId }: GameProps) {
       {state.status === "error" && (
         <div className="absolute inset-0 grid place-items-center p-4" role="alert">
           <div className="panel max-w-sm rounded-2xl p-6 text-center">
-            <p className="font-medium">Couldn&apos;t start the game</p>
+            <p className="font-medium">Impossible de lancer la partie</p>
             <p className="mt-1 text-sm text-muted">{state.error}</p>
             <button type="button" className={buttonClass("primary", "mt-4")} onClick={restart}>
-              Try again
+              Réessayer
             </button>
           </div>
         </div>

@@ -1,9 +1,11 @@
 {
-  "name": "geoguessr",
+  "name": "gaguessr",
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "predev": "node scripts/copy-maplibre-worker.mjs",
     "dev": "next dev",
+    "prebuild": "node scripts/copy-maplibre-worker.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
@@ -12,27 +14,22 @@
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
     "typecheck": "tsc --noEmit",
-    "build:geo": "node scripts/build-france-geo.mjs"
+    "build:geo": "node scripts/build-france-geo.mjs",
+    "postinstall": "node scripts/copy-maplibre-worker.mjs"
   },
   "dependencies": {
     "d3-geo": "^3.1.1",
-    "d3-selection": "^3.0.0",
-    "d3-transition": "^3.0.1",
-    "d3-zoom": "^3.0.0",
+    "maplibre-gl": "^6.14.0",
     "next": "16.4.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "topojson-client": "^3.1.0",
-    "world-atlas": "^2.0.2",
     "zod": "^4.6.5"
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",
     "@tailwindcss/turbopack": "^4",
     "@types/d3-geo": "^3.1.1",
-    "@types/d3-selection": "^3.0.12",
-    "@types/d3-transition": "^3.0.9",
-    "@types/d3-zoom": "^3.0.9",
     "@types/geojson": "^7946.0.16",
     "@types/node": "^24.19.1",
     "@types/react": "^19",

@@ -14,6 +14,8 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     "coverage/**",
     "playwright-report/**",
+    // Copied from node_modules by scripts/copy-maplibre-worker.mjs.
+    "public/vendor/**",
   ]),
 ]);
 
