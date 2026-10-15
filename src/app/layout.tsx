@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "GAguessr — la carte de la France nucléaire",
-  description: "Placez sur la carte les centrales, centres de recherche et sites militaires nucléaires français. Plus vous visez juste, plus vous marquez."
+  title: "GAguessr",
+  description: "Geoguessr mais pour le GA"
 };
 
 export const viewport: Viewport = {
