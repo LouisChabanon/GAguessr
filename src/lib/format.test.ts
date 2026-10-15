@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatClock, formatDistance, formatDuration, formatScore, formatDate } from "./format";
+import { formatClock, formatDistance, formatDuration, formatScore, formatDate, formatPercent, formatRank } from "./format";
 
 // French typography: no-break space before units, narrow no-break space between thousands.
 const NBSP = " ";
@@ -49,5 +49,20 @@ describe("formatDuration", () => {
     [3_723_000, `1${NBSP}h 2${NBSP}min 3${NBSP}s`],
   ])("%d ms → %s", (ms, expected) => {
     expect(formatDuration(ms)).toBe(expected);
+  });
+});
+
+describe("formatPercent", () => {
+  it("rounds a share to a whole French percentage", () => {
+    expect(formatPercent(0.724)).toBe("72\u00a0%");
+    expect(formatPercent(0)).toBe("0\u00a0%");
+  });
+});
+
+describe("formatRank", () => {
+  it("uses French ordinals", () => {
+    expect(formatRank(1)).toBe("1er");
+    expect(formatRank(2)).toBe("2e");
+    expect(formatRank(13)).toBe("13e");
   });
 });

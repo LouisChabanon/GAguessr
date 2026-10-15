@@ -5,18 +5,24 @@ import { buttonClass } from "@/components/ui/button";
 import { ScoreBar } from "@/components/ui/ScoreBar";
 import { formatDistance, formatDuration, formatScore } from "@/lib/format";
 import { MAX_ROUND_SCORE } from "@/lib/geo/scoring";
+import type { SubmissionState } from "@/hooks/useScoreSubmission";
+import type { PseudoResult } from "@/lib/scores/types";
+import { SummaryStanding } from "./SummaryStanding";
 
 interface GameSummaryProps {
+  modeId: string;
   modeTitle: string;
   results: readonly RoundResult[];
   total: number;
   /** Total guessing time, reveals excluded. */
   timeMs: number;
   record: ScoreRecord | null;
+  submission: SubmissionState;
+  onChoosePseudo: (pseudo: string) => Promise<PseudoResult>;
   onPlayAgain: () => void;
 }
 
-export function GameSummary({ modeTitle, results, total, timeMs, record, onPlayAgain }: GameSummaryProps) {
+export function GameSummary({ modeId, modeTitle, results, total, timeMs, record, submission, onChoosePseudo, onPlayAgain }: GameSummaryProps) {
   const max = results.length * MAX_ROUND_SCORE;
 
   return (
@@ -35,6 +41,7 @@ export function GameSummary({ modeTitle, results, total, timeMs, record, onPlayA
           en <span data-testid="game-time" className="font-medium text-ink tabular-nums">{formatDuration(timeMs)}</span> de recherche
         </p>
         {record && <BestScoreNote record={record} />}
+        <SummaryStanding modeId={modeId} submission={submission} onChoosePseudo={onChoosePseudo} />
 
         <ol className="mt-6 divide-y divide-line border-y border-line">
           {results.map((r, i) => (
@@ -55,6 +62,9 @@ export function GameSummary({ modeTitle, results, total, timeMs, record, onPlayA
         <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
           <Link href="/" className={buttonClass("ghost", "h-11")}>
             Accueil
+          </Link>
+          <Link href={`/classement/${modeId}`} className={buttonClass("ghost", "h-11")}>
+            Classement
           </Link>
           <button type="button" autoFocus className={buttonClass("primary")} onClick={onPlayAgain}>
             Rejouer

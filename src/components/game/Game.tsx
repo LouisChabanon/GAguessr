@@ -10,7 +10,9 @@ import { GameSummary } from "@/components/summary/GameSummary";
 import { buttonClass } from "@/components/ui/button";
 import { totalScore } from "@/game/evaluate";
 import { currentResult, currentTarget } from "@/game/gameReducer";
+import { useCrowdData } from "@/hooks/useCrowdData";
 import { useGame } from "@/hooks/useGame";
+import { MIN_PLAYS_FOR_STATS } from "@/lib/scores/crowd";
 import { getMode } from "@/modes/registry";
 
 interface GameProps {
@@ -21,7 +23,7 @@ export function Game({ modeId }: GameProps) {
   // Modes hold functions, so the client looks them up by id rather than receiving them as props.
   const mode = getMode(modeId);
   if (!mode) throw new Error(`Unknown game mode "${modeId}"`);
-  const { state, record, place, startClock, confirm, next, restart } = useGame(mode);
+  const { state, record, submission, choosePseudo, place, startClock, confirm, next, restart } = useGame(mode);
   // The clock starts once both the sites and the map are ready, so a slow map costs no time.
   const [isMapReady, setIsMapReady] = useState(false);
   const handleMapReady = useCallback(() => setIsMapReady(true), []);
@@ -41,6 +43,9 @@ export function Game({ modeId }: GameProps) {
   const nextPhoto = state.targets[state.roundIndex + 1]?.photo;
   useEffect(() => preloadPhoto(nextPhoto), [nextPhoto]);
   const result = currentResult(state);
+  const crowdData = useCrowdData(mode.id);
+  const crowdStat = result ? crowdData?.stats[result.target.id] : undefined;
+  const crowd = crowdData && crowdStat && crowdStat.plays >= MIN_PLAYS_FOR_STATS ? { stat: crowdStat, withinKm: crowdData.withinKm } : undefined;
   const total = totalScore(state.results);
   // While revealed, the last result is the current round's: it gets the full treatment.
   const pastResults = state.status === "revealed" ? state.results.slice(0, -1) : state.results;
@@ -54,6 +59,7 @@ export function Game({ modeId }: GameProps) {
         guess={state.guess}
         result={result}
         pastResults={pastResults}
+        crowdGuesses={result ? crowdData?.guesses[result.target.id] : undefined}
         interactive={state.status === "guessing"}
         onPick={place}
         onConfirm={confirm}
@@ -77,6 +83,7 @@ export function Game({ modeId }: GameProps) {
             ref={bottomBarRef}
             hasGuess={state.guess !== null}
             result={result}
+            crowd={crowd}
             isLastRound={state.roundIndex === state.targets.length - 1}
             onConfirm={confirm}
             onNext={next}
@@ -100,11 +107,14 @@ export function Game({ modeId }: GameProps) {
 
       {state.status === "finished" && (
         <GameSummary
+          modeId={mode.id}
           modeTitle={mode.title}
           results={state.results}
           total={total}
           timeMs={state.stoppedMs}
           record={record}
+          submission={submission}
+          onChoosePseudo={choosePseudo}
           onPlayAgain={restart}
         />
       )}

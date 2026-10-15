@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, type KeyboardEvent } from "rea
 import type { RoundResult } from "@/game/evaluate";
 import type { LonLat } from "@/lib/geo/distance";
 import { MAP_VIEWS, REVEAL_MAX_ZOOM, revealBounds, toLngLat, type MapArea } from "@/lib/map/bounds";
-import { REVEAL_SOURCE } from "@/lib/map/style";
+import { CROWD_SOURCE, REVEAL_SOURCE } from "@/lib/map/style";
 import { createMarkerElement, type MarkerKind } from "./markerElement";
 import { useMaplibre } from "./useMaplibre";
 
@@ -35,6 +35,8 @@ interface GameMapProps {
   result: RoundResult | undefined;
   /** Answers revealed in earlier rounds; they stay on the map for the rest of the game. */
   pastResults: readonly RoundResult[];
+  /** Where other players put the revealed site, drawn as a heatmap. */
+  crowdGuesses?: readonly LonLat[];
   interactive: boolean;
   onPick: (lonLat: LonLat) => void;
   onConfirm: () => void;
@@ -90,7 +92,7 @@ function useMarkers(map: MaplibreMap | null, kind: MarkerKind, points: readonly 
   }, [map]);
 }
 
-export function GameMap({ area, roundKey, guess, result, pastResults, interactive, onPick, onConfirm, onReady, getSafeArea }: GameMapProps) {
+export function GameMap({ area, roundKey, guess, result, pastResults, crowdGuesses, interactive, onPick, onConfirm, onReady, getSafeArea }: GameMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const padding = useCallback(() => {
     const safe = getSafeArea?.() ?? NO_SAFE_AREA;
@@ -147,6 +149,23 @@ export function GameMap({ area, roundKey, guess, result, pastResults, interactiv
       map.off("style.load", apply);
     };
   }, [map, result]);
+
+  // Other players' guesses, only once the answer is out; re-applied when the color scheme swaps the style.
+  useEffect(() => {
+    if (!map) return;
+    const points = result ? (crowdGuesses ?? []) : [];
+    const apply = () => {
+      map.getSource<GeoJSONSource>(CROWD_SOURCE)?.setData({
+        type: "FeatureCollection",
+        features: points.map((point) => ({ type: "Feature", properties: {}, geometry: { type: "Point", coordinates: [...point] } })),
+      });
+    };
+    apply();
+    map.on("style.load", apply);
+    return () => {
+      map.off("style.load", apply);
+    };
+  }, [map, result, crowdGuesses]);
 
   // Frame the guess and the answer on reveal; back to the whole map for the next round.
   useEffect(() => {

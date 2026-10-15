@@ -7,6 +7,34 @@ import { PALETTES, type MapScheme, type Palette } from "./palette";
 export type { MapScheme } from "./palette";
 
 export const REVEAL_SOURCE = "reveal";
+/** Other players' guesses for the revealed site. */
+export const CROWD_SOURCE = "crowd";
+
+/** `#rrggbb` with an alpha channel, for heatmap ramps that fade from transparent. */
+function withAlpha(hex: string, alpha: number): string {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+function crowdHeatmapLayer(p: Palette): LayerSpecification {
+  return {
+    id: "crowd-heatmap",
+    type: "heatmap",
+    source: CROWD_SOURCE,
+    paint: {
+      "heatmap-radius": ["interpolate", ["linear"], ["zoom"], 2, 10, 6, 22, 10, 36],
+      "heatmap-intensity": ["interpolate", ["linear"], ["zoom"], 2, 0.6, 10, 1.4],
+      "heatmap-color": [
+        "interpolate", ["linear"], ["heatmap-density"],
+        0, withAlpha(p.crowd, 0),
+        0.2, withAlpha(p.crowd, 0.25),
+        0.6, withAlpha(p.crowd, 0.55),
+        1, withAlpha(p.crowdPeak, 0.8),
+      ],
+      "heatmap-opacity": 0.9,
+    },
+  };
+}
 const TILE_SOURCE = "openmaptiles";
 const FONT = ["Noto Sans Regular"];
 const FONT_BOLD = ["Noto Sans Bold"];
@@ -511,6 +539,7 @@ export function buildMapStyle({ scheme, tilesUrl, glyphsUrl, hiddenPlaceNames, f
       [TILE_SOURCE]: { type: "vector", url: tilesUrl, attribution: ATTRIBUTION },
       ...(france ? franceSources(france) : {}),
       [REVEAL_SOURCE]: { type: "geojson", data: { type: "FeatureCollection", features: [] } },
+      [CROWD_SOURCE]: { type: "geojson", data: { type: "FeatureCollection", features: [] } },
     },
     layers: [
       ...groundLayers(p),
@@ -520,6 +549,7 @@ export function buildMapStyle({ scheme, tilesUrl, glyphsUrl, hiddenPlaceNames, f
       ...countryBorderLayers(p),
       ...osmLabelLayers(p, hiddenPlaceNames, france?.land ?? null),
       ...(france ? franceLabelLayers(p) : worldLabelLayers(p)),
+      crowdHeatmapLayer(p),
       {
         id: "reveal-line",
         type: "line",

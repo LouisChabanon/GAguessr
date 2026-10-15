@@ -6,11 +6,16 @@ import { createInitialState, gameReducer, type GameState } from "@/game/gameRedu
 import { pickTargets, roundCount } from "@/game/pickTargets";
 import type { LonLat } from "@/lib/geo/distance";
 import type { GameMode } from "@/modes/types";
+import type { UseScoreSubmission } from "./useScoreSubmission";
 import { recordScore, type ScoreRecord } from "./useBestScore";
+import { useScoreSubmission, type SubmissionState } from "./useScoreSubmission";
 
 export interface UseGame {
   state: GameState;
   record: ScoreRecord | null;
+  /** Saving the finished game to the shared leaderboard. */
+  submission: SubmissionState;
+  choosePseudo: UseScoreSubmission["choosePseudo"];
   place: (guess: LonLat) => void;
   /** Starts the first round's stopwatch; call it once the map can take a pin. */
   startClock: () => void;
@@ -27,6 +32,7 @@ export function useGame(mode: GameMode): UseGame {
   const [state, dispatch] = useReducer(gameReducer, mode.scaleKm, createInitialState);
   const [record, setRecord] = useState<ScoreRecord | null>(null);
   const [attempt, setAttempt] = useState(0);
+  const { submission, submit, choosePseudo, reset: resetSubmission } = useScoreSubmission();
 
   useEffect(() => {
     let cancelled = false;
@@ -53,15 +59,19 @@ export function useGame(mode: GameMode): UseGame {
 
   const next = useCallback(() => {
     const isLastRound = state.status === "revealed" && state.roundIndex === state.targets.length - 1;
-    if (isLastRound) setRecord(recordScore(mode.id, totalScore(state.results)));
+    if (isLastRound) {
+      setRecord(recordScore(mode.id, totalScore(state.results)));
+      submit(mode.id, state.results, state.stoppedMs);
+    }
     dispatch({ type: "next", at: Date.now() });
-  }, [mode.id, state]);
+  }, [mode.id, state, submit]);
 
   const restart = useCallback(() => {
     setRecord(null);
+    resetSubmission();
     dispatch({ type: "retry" });
     setAttempt((n) => n + 1);
-  }, []);
+  }, [resetSubmission]);
 
-  return { state, record, place, startClock, confirm, next, restart };
+  return { state, record, submission, choosePseudo, place, startClock, confirm, next, restart };
 }

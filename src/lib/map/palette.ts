@@ -24,6 +24,9 @@ export interface Palette {
   adminLabel: string;
   waterLabel: string;
   revealLine: string;
+  /** Other players' guesses: the heatmap fades in from transparent to this hue, peaking at `crowdPeak`. */
+  crowd: string;
+  crowdPeak: string;
 }
 
 // MapLibre does not parse oklch(); `water` matches --map-ocean in globals.css.
@@ -51,6 +54,8 @@ export const PALETTES: Readonly<Record<MapScheme, Palette>> = {
     adminLabel: "#8c8473",
     waterLabel: "#4c7396",
     revealLine: "#1d2230",
+    crowd: "#5546c9",
+    crowdPeak: "#2b1d8f",
   },
   dark: {
     // Slate land lifted off an inky sea.
@@ -75,5 +80,7 @@ export const PALETTES: Readonly<Record<MapScheme, Palette>> = {
     adminLabel: "#9ea6b3",
     waterLabel: "#7ea6cc",
     revealLine: "#f1f3f6",
+    crowd: "#9d8cff",
+    crowdPeak: "#e3dcff",
   },
 };

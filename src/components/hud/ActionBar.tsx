@@ -2,25 +2,28 @@ import type { Ref } from "react";
 import type { RoundResult } from "@/game/evaluate";
 import { buttonClass } from "@/components/ui/button";
 import { ScoreBar, TIER_COLOR } from "@/components/ui/ScoreBar";
-import { formatDistance, formatScore } from "@/lib/format";
+import { formatDistance, formatPercent, formatScore } from "@/lib/format";
+import type { TargetStat } from "@/lib/scores/types";
 import { scoreTier } from "@/lib/geo/scoring";
 
 interface ActionBarProps {
   hasGuess: boolean;
   result: RoundResult | undefined;
+  /** How other players did on the revealed site, when enough have played it. */
+  crowd?: { stat: TargetStat; withinKm: number };
   isLastRound: boolean;
   onConfirm: () => void;
   onNext: () => void;
   ref?: Ref<HTMLElement>;
 }
 
-export function ActionBar({ hasGuess, result, isLastRound, onConfirm, onNext, ref }: ActionBarProps) {
+export function ActionBar({ hasGuess, result, crowd, isLastRound, onConfirm, onNext, ref }: ActionBarProps) {
   return (
     <footer
       ref={ref}
       className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex justify-center p-3 sm:p-6">
       {result ? (
-        <RoundResultPanel result={result} isLastRound={isLastRound} onNext={onNext} />
+        <RoundResultPanel result={result} crowd={crowd} isLastRound={isLastRound} onNext={onNext} />
       ) : (
         <div className="panel enter-up pointer-events-auto flex items-center gap-4 rounded-2xl py-2 pr-2 pl-5">
           <p className="text-sm text-muted">
@@ -37,11 +40,12 @@ export function ActionBar({ hasGuess, result, isLastRound, onConfirm, onNext, re
 
 interface RoundResultPanelProps {
   result: RoundResult;
+  crowd: ActionBarProps["crowd"];
   isLastRound: boolean;
   onNext: () => void;
 }
 
-function RoundResultPanel({ result, isLastRound, onNext }: RoundResultPanelProps) {
+function RoundResultPanel({ result, crowd, isLastRound, onNext }: RoundResultPanelProps) {
   const tier = scoreTier(result.score);
 
   return (
@@ -75,6 +79,15 @@ function RoundResultPanel({ result, isLastRound, onNext }: RoundResultPanelProps
         </p>
       </div>
       <ScoreBar score={result.score} className="mt-3" />
+      {crowd && (
+        <p className="mt-2.5 flex items-center gap-2 text-xs text-muted" data-testid="round-crowd">
+          <span className="size-2 shrink-0 rounded-full bg-crowd" aria-hidden />
+          <span>
+            <span className="font-medium text-ink tabular-nums">{formatPercent(crowd.stat.withinShare)}</span> des joueurs l’ont
+            placé à moins de {formatDistance(crowd.withinKm)}
+          </span>
+        </p>
+      )}
       <button
         type="button"
         // Keyboard flow: Enter on the map confirms, Enter again moves on.

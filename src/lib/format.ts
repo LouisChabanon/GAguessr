@@ -47,3 +47,15 @@ const dateFormat = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "sh
 export function formatDate(date: Date): string {
   return dateFormat.format(date);
 }
+
+const percentFormat = new Intl.NumberFormat("fr-FR", { style: "percent", maximumFractionDigits: 0 });
+
+/** A 0–1 share as a whole percentage: "72 %". */
+export function formatPercent(share: number): string {
+  return percentFormat.format(share);
+}
+
+/** French ordinal: "1er", "2e", "13e". */
+export function formatRank(rank: number): string {
+  return rank === 1 ? "1er" : `${rank}e`;
+}

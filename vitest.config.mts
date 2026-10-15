@@ -12,7 +12,8 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       include: ["src/lib/**", "src/game/**", "src/modes/**"],
-      exclude: ["src/**/*.test.ts"],
+      // The Supabase client factories are SDK wiring; the database itself is covered by src/test/migrations.test.ts.
+      exclude: ["src/**/*.test.ts", "src/lib/supabase/{admin,browser,public,server,database.types}.ts"],
       thresholds: { lines: 80, functions: 80, branches: 80, statements: 80 },
     },
   },

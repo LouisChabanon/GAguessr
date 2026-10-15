@@ -52,6 +52,14 @@ async function ModeRow({ mode, index }: { mode: GameMode; index: number }) {
           <path d="M4 10h12m-5-5 5 5-5 5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </Link>
+      <p className="-mt-3 flex gap-4 pb-4 pl-14 text-xs text-muted sm:-mt-4 sm:pl-[4.5rem]">
+        <Link href={`/classement/${mode.id}`} className="underline-offset-4 transition-colors duration-150 hover:text-ink hover:underline">
+          Classement
+        </Link>
+        <Link href={`/stats/${mode.id}`} className="underline-offset-4 transition-colors duration-150 hover:text-ink hover:underline">
+          Statistiques
+        </Link>
+      </p>
     </li>
   );
 }
