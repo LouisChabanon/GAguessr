@@ -137,7 +137,8 @@ describe("upgrade from 1v1 duels", () => {
     expect((await duel(db, "BBBBBB")).status).toBe("playing");
     const read = await asRole(db, "authenticated", BOB, () => db.query("select code from public.duels"));
     expect(read.rows).toEqual([{ code: "AAAAAA" }]);
-  });
+    // Builds and migrates a database in two steps: slower than the other tests.
+  }, 20_000);
 });
 
 describe("duels migration", () => {

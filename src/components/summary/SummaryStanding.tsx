@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { useId, type FormEvent } from "react";
 import { buttonClass } from "@/components/ui/button";
+import { PseudoEditor } from "@/components/ui/PseudoEditor";
 import type { PseudoDraft } from "@/hooks/usePseudoDraft";
 import type { SubmissionState } from "@/hooks/useScoreSubmission";
 import { formatPercent, formatRank, formatScore } from "@/lib/format";
 import { PSEUDO_MAX } from "@/lib/scores/pseudo";
-import type { GameStanding } from "@/lib/scores/types";
+import type { GameStanding, PseudoResult } from "@/lib/scores/types";
 
 interface SummaryStandingProps {
   modeId: string;
@@ -15,6 +16,8 @@ interface SummaryStandingProps {
   /** The game's precision points, before the speed bonus. */
   totalScore: number;
   pseudoDraft: PseudoDraft;
+  /** Changes the pseudo of a player who already has one. */
+  onRename: (pseudo: string) => Promise<PseudoResult>;
 }
 
 const ERROR_NOTES: Readonly<Record<Exclude<SubmissionState, { status: "idle" | "pending" | "done" }>["error"], string>> = {
@@ -25,7 +28,7 @@ const ERROR_NOTES: Readonly<Record<Exclude<SubmissionState, { status: "idle" | "
 };
 
 /** How the game ranks against everyone else's; never blocks the summary. */
-export function SummaryStanding({ modeId, submission, totalScore, pseudoDraft }: SummaryStandingProps) {
+export function SummaryStanding({ modeId, submission, totalScore, pseudoDraft, onRename }: SummaryStandingProps) {
   if (submission.status === "idle") return null;
   if (submission.status === "pending") {
     return (
@@ -41,10 +44,14 @@ export function SummaryStanding({ modeId, submission, totalScore, pseudoDraft }:
       </p>
     );
   }
-  return <Standing modeId={modeId} standing={submission.standing} totalScore={totalScore} pseudoDraft={pseudoDraft} />;
+  return <Standing modeId={modeId} standing={submission.standing} totalScore={totalScore} pseudoDraft={pseudoDraft} onRename={onRename} />;
 }
 
-function Standing({ modeId, standing, totalScore, pseudoDraft }: { modeId: string; standing: GameStanding; totalScore: number; pseudoDraft: PseudoDraft }) {
+interface StandingProps extends Pick<SummaryStandingProps, "modeId" | "totalScore" | "pseudoDraft" | "onRename"> {
+  standing: GameStanding;
+}
+
+function Standing({ modeId, standing, totalScore, pseudoDraft, onRename }: StandingProps) {
   const isFirstGame = standing.games <= 1;
   const speedBonus = standing.rankingScore - totalScore;
   return (
@@ -75,7 +82,11 @@ function Standing({ modeId, standing, totalScore, pseudoDraft }: { modeId: strin
           </>
         )}
       </p>
-      {!standing.pseudo && <PseudoForm rank={standing.rank} draft={pseudoDraft} />}
+      {standing.pseudo ? (
+        <PseudoEditor pseudo={standing.pseudo} onRename={onRename} label="Au classement sous le nom" className="mt-3 border-t border-line pt-3" />
+      ) : (
+        <PseudoForm rank={standing.rank} draft={pseudoDraft} />
+      )}
     </div>
   );
 }

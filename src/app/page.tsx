@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { BestScore } from "@/components/game/BestScore";
+import { PlayerBadge } from "@/components/player/PlayerBadge";
 import { GAME_MODES } from "@/modes/registry";
 import type { GameMode } from "@/modes/types";
 
@@ -67,8 +68,9 @@ async function ModeRow({ mode, index }: { mode: GameMode; index: number }) {
 export default function Home() {
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-5xl flex-col px-4 py-8 sm:px-8 sm:py-12">
-      <header>
+      <header className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
         <Logo />
+        <PlayerBadge />
       </header>
 
       <section aria-labelledby="hero-heading" className="mt-16 sm:mt-24">

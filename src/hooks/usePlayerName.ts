@@ -10,6 +10,8 @@ export interface PlayerName {
   /** The player's pseudo, or null while they have none. */
   pseudo: string | null;
   draft: PseudoDraft;
+  /** Changes the pseudo the player already has. */
+  rename: (pseudo: string) => Promise<PseudoResult>;
   /** Makes sure the visitor has a session and a pseudo, saving the typed one if needed. */
   ready: () => Promise<boolean>;
 }
@@ -32,5 +34,5 @@ export function usePlayerName(known: string | null): PlayerName {
     return pseudo !== null || draft.save();
   }, [pseudo, draft]);
 
-  return { pseudo, draft, ready };
+  return { pseudo, draft, rename: choose, ready };
 }

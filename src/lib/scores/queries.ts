@@ -4,12 +4,11 @@ import { cacheLife, cacheTag } from "next/cache";
 import { publicSupabase } from "@/lib/supabase/public";
 import { getMode } from "@/modes/registry";
 import { PROFILES_TAG, scoresTag, statsTag } from "./tags";
-import type { CrowdData, LeaderboardPeriod, LeaderboardRow } from "./types";
+import type { CrowdData, LeaderboardRow } from "./types";
 
 /** Guesses per site kept for heatmaps. */
 const HEATMAP_GUESSES_PER_TARGET = 300;
 const LEADERBOARD_SIZE = 50;
-const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
 export interface ModeOverview {
   games: number;
@@ -57,13 +56,13 @@ export async function getCrowdData(modeId: string): Promise<CrowdData> {
   });
 }
 
-export async function getLeaderboard(modeId: string, period: LeaderboardPeriod): Promise<readonly LeaderboardRow[]> {
+/** Each named player's best game in a mode, all time. */
+export async function getLeaderboard(modeId: string): Promise<readonly LeaderboardRow[]> {
   "use cache";
   cacheLife("minutes");
   cacheTag(scoresTag(modeId), PROFILES_TAG);
   return orEmpty("leaderboard", [], async () => {
-    const since = period === "week" ? new Date(Date.now() - WEEK_MS).toISOString() : undefined;
-    const { data, error } = await publicSupabase().rpc("leaderboard", { p_mode: modeId, p_since: since, p_limit: LEADERBOARD_SIZE });
+    const { data, error } = await publicSupabase().rpc("leaderboard", { p_mode: modeId, p_limit: LEADERBOARD_SIZE });
     if (error) throw error;
     return data.map((r) => ({
       rank: r.rank,

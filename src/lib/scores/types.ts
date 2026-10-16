@@ -35,8 +35,6 @@ export interface CrowdData {
   guesses: Readonly<Record<string, readonly LonLat[]>>;
 }
 
-export type LeaderboardPeriod = "all" | "week";
-
 export interface LeaderboardRow {
   rank: number;
   pseudo: string;

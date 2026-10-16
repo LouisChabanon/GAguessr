@@ -171,7 +171,8 @@ test.describe("duel", () => {
     await expect(guest.getByTestId("duel-rules")).toContainText(/Manches\s*5[\s\S]*Par manche\s*15\s*s/);
     await guest.getByLabel("Votre pseudo").fill(pseudo("Invite"));
     await guest.getByRole("button", { name: "Accepter le duel" }).click();
-    await expect(guest.getByText("1/5")).toBeVisible({ timeout: ROUND_TIMEOUT_MS });
+    // Rounds are 15 s here: a slow map may already show round 2, so only the round count is checked.
+    await expect(guest.getByText(/^\d\/5$/)).toBeVisible({ timeout: ROUND_TIMEOUT_MS });
   });
 
   test("a mistyped code is caught before leaving the lobby", async ({ page }) => {

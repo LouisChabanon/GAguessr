@@ -52,7 +52,7 @@ export function GameSummary({ modeId, modeTitle, results, total, timeMs, record,
           en <span data-testid="game-time" className="font-medium text-ink tabular-nums">{formatDuration(timeMs)}</span> de recherche
         </p>
         {record && <BestScoreNote record={record} />}
-        <SummaryStanding modeId={modeId} submission={submission} totalScore={total} pseudoDraft={pseudoDraft} />
+        <SummaryStanding modeId={modeId} submission={submission} totalScore={total} pseudoDraft={pseudoDraft} onRename={onChoosePseudo} />
 
         <ol className="mt-6 divide-y divide-line border-y border-line">
           {results.map((r, i) => (

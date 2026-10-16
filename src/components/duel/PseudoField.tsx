@@ -1,17 +1,12 @@
 "use client";
 
+import { PseudoEditor } from "@/components/ui/PseudoEditor";
 import type { PlayerName } from "@/hooks/usePlayerName";
 import { PSEUDO_MAX } from "@/lib/scores/pseudo";
 
-/** The player's name in a duel: shown when known, asked for otherwise. */
+/** The player's name in a duel: shown (and changeable) when known, asked for otherwise. */
 export function PseudoField({ name, id }: { name: PlayerName; id: string }) {
-  if (name.pseudo) {
-    return (
-      <p className="text-sm text-muted">
-        Vous jouez en tant que <span className="font-medium text-ink">{name.pseudo}</span>
-      </p>
-    );
-  }
+  if (name.pseudo) return <PseudoEditor pseudo={name.pseudo} onRename={name.rename} label="Vous jouez en tant que" />;
   const { draft } = name;
   return (
     <div>

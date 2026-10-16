@@ -39,15 +39,11 @@ describe("score queries", () => {
     expect(cacheTag).toHaveBeenCalledWith("stats:fr-nuclear-plants");
   });
 
-  it("maps leaderboard rows and limits the weekly board to the last 7 days", async () => {
+  it("maps the all-time leaderboard rows", async () => {
     rpc.mockReturnValue(result([{ rank: 1, pseudo: "Lou", ranking_score: 9600, total_score: 9000, max_score: 90000, time_ms: 61000, played_at: "2026-10-15T10:00:00Z" }]));
-    const rows = await getLeaderboard("fr-nuclear-plants", "week");
+    const rows = await getLeaderboard("fr-nuclear-plants");
     expect(rows).toEqual([{ rank: 1, pseudo: "Lou", rankingScore: 9600, totalScore: 9000, maxScore: 90000, timeMs: 61000, playedAt: "2026-10-15T10:00:00Z" }]);
-    const since = Date.parse(rpc.mock.calls[0][1].p_since);
-    expect(Date.now() - since).toBeCloseTo(7 * 24 * 3600 * 1000, -4);
-
-    await getLeaderboard("fr-nuclear-plants", "all");
-    expect(rpc.mock.calls[1][1].p_since).toBeUndefined();
+    expect(rpc).toHaveBeenCalledWith("leaderboard", { p_mode: "fr-nuclear-plants", p_limit: 50 });
   });
 
   it("turns averages into a success share", async () => {
@@ -59,7 +55,7 @@ describe("score queries", () => {
 
   it("falls back to empty data when Supabase fails", async () => {
     rpc.mockReturnValue(result(null, { message: "down" }));
-    expect(await getLeaderboard("fr-nuclear-plants", "all")).toEqual([]);
+    expect(await getLeaderboard("fr-nuclear-plants")).toEqual([]);
     expect(await getModeOverview("fr-nuclear-plants")).toEqual({ games: 0, players: 0, avgShare: null });
     expect(await getCrowdData("fr-nuclear-plants")).toEqual({ withinKm: 100, stats: {}, guesses: {} });
     expect(console.error).toHaveBeenCalled();
