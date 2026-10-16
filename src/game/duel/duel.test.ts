@@ -7,7 +7,7 @@ import { DUEL_REVEAL_MS } from "./rules";
 
 const round = (...scores: number[]): DuelRound => ({
   targetId: "t",
-  answers: scores.map((score, seat) => ({ seat, guess: null, distanceKm: null, score })),
+  answers: scores.map((score, seat) => ({ seat, guess: null, distanceKm: null, score, isLocked: false })),
 });
 
 describe("normalizeDuelCode", () => {
@@ -47,7 +47,7 @@ describe("deriveDuelPhase", () => {
 
   it("is guessing once the round starts, locked once the player locked", () => {
     expect(deriveDuelPhase(playing, 1_000)).toBe("guessing");
-    expect(deriveDuelPhase({ ...playing, myLock: { guess: [2, 46], distanceKm: 1, score: 4900 } }, 1_500)).toBe("locked");
+    expect(deriveDuelPhase({ ...playing, myLock: { guess: [2, 46], distanceKm: 1, score: 4900, isLocked: true } }, 1_500)).toBe("locked");
   });
 });
 

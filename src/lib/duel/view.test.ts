@@ -28,8 +28,19 @@ const DUEL: DuelRow = {
   finished_at: null,
 };
 
-const guess = (round: number, user: string, score: number) => ({ round_index: round, user_id: user, lon: 2, lat: 50, distance_km: 12, score });
-const timedOut = (round: number, user: string) => ({ round_index: round, user_id: user, lon: null, lat: null, distance_km: null, score: 0 });
+const LOCKED_AT = "2026-10-17T09:59:30Z";
+const guess = (round: number, user: string, score: number) => ({
+  round_index: round,
+  user_id: user,
+  lon: 2,
+  lat: 50,
+  distance_km: 12,
+  score,
+  locked_at: LOCKED_AT,
+});
+const timedOut = (round: number, user: string) => ({ round_index: round, user_id: user, lon: null, lat: null, distance_km: null, score: 0, locked_at: null });
+/** A pin placed but not locked before the deadline: it scores, unlocked. */
+const unlockedPin = (round: number, user: string, score: number) => ({ ...guess(round, user, score), locked_at: null });
 
 function view(overrides: Partial<DuelViewInput> = {}) {
   return buildDuelView({
@@ -40,7 +51,7 @@ function view(overrides: Partial<DuelViewInput> = {}) {
       { user_id: HOST, seat: 0 },
       { user_id: BOB, seat: 1 },
     ],
-    guesses: [guess(0, HOST, 4000), timedOut(0, BOB), guess(0, CAROL, 2500), guess(1, BOB, 4500)],
+    guesses: [guess(0, HOST, 4000), timedOut(0, BOB), unlockedPin(0, CAROL, 2500), guess(1, BOB, 4500)],
     viewerId: HOST,
     pseudos: new Map([
       [HOST, "Alice"],
@@ -65,14 +76,14 @@ describe("buildDuelView", () => {
     expect(JSON.stringify(v)).not.toMatch(/"(host|bob|carol)"/);
   });
 
-  it("shows resolved rounds with every answer", () => {
+  it("shows resolved rounds with every answer, and whether it was locked", () => {
     expect(view().rounds).toEqual([
       {
         targetId: "gravelines",
         answers: [
-          { seat: 0, guess: [2, 50], distanceKm: 12, score: 4000 },
-          { seat: 1, guess: null, distanceKm: null, score: 0 },
-          { seat: 2, guess: [2, 50], distanceKm: 12, score: 2500 },
+          { seat: 0, guess: [2, 50], distanceKm: 12, score: 4000, isLocked: true },
+          { seat: 1, guess: null, distanceKm: null, score: 0, isLocked: false },
+          { seat: 2, guess: [2, 50], distanceKm: 12, score: 2500, isLocked: false },
         ],
       },
     ]);
@@ -86,7 +97,7 @@ describe("buildDuelView", () => {
 
   it("gives the viewer their own lock and the round's timing", () => {
     const v = view({ viewerId: BOB });
-    expect(v.myLock).toEqual({ guess: [2, 50], distanceKm: 12, score: 4500 });
+    expect(v.myLock).toEqual({ guess: [2, 50], distanceKm: 12, score: 4500, isLocked: true });
     expect(v).toMatchObject({ isHost: false, mySeat: 1, currentTargetId: "penly", roundDeadline: Date.parse(DUEL.round_deadline!) });
   });
 

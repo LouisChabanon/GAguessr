@@ -21,7 +21,7 @@ interface DuelGameProps {
   mode: GameMode;
 }
 
-const NO_ANSWER: DuelGuess = { guess: null, distanceKm: null, score: 0 };
+const NO_ANSWER: DuelGuess = { guess: null, distanceKm: null, score: 0, isLocked: false };
 
 function myAnswer(round: DuelRound, mySeat: number | null): DuelGuess {
   return round.answers.find((a) => a.seat === mySeat) ?? NO_ANSWER;

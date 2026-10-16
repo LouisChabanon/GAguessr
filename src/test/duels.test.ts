@@ -61,6 +61,8 @@ const leaveDuel = (db: PGlite, id: string, user: string) => call(db, "select pub
 const tick = (db: PGlite, id: string) => call(db, "select public.duel_tick($1)", [id]);
 const lock = (db: PGlite, id: string, user: string, round: number, score = 4000) =>
   call(db, "select public.duel_lock($1, $2, $3::smallint, 2.1, 50.9, 12.5, $4)", [id, user, round, score]);
+const pin = (db: PGlite, id: string, user: string, round: number, score: number, lon = 3.3) =>
+  call(db, "select public.duel_pin($1, $2, $3::smallint, $5, 48.1, 99.5, $4)", [id, user, round, score, lon]);
 
 async function duel(db: PGlite, code: string): Promise<DuelRow> {
   const res = await db.query<DuelRow>(
@@ -389,6 +391,67 @@ describe("duels migration", () => {
       await lock(db, id, BOB, 0);
       expect((await duel(db, code)).status).toBe("finished");
       await expect(lock(db, id, ALICE, 1)).rejects.toThrow(/not_playing/);
+    });
+  });
+
+  describe("pins", () => {
+    it("score a player who did not lock in time with their last pin, unlocked", async () => {
+      const { id, code } = await startedDuel(db, { players: [BOB, CAROL] });
+      await pin(db, id, BOB, 0, 1000, 1.1);
+      await pin(db, id, BOB, 0, 2500, 2.2);
+      await lock(db, id, ALICE, 0, 4000);
+      await elapse(db, id, GRACE_S + DUEL_TOLERANCE_MS / 1000 + 0.1);
+      await tick(db, id);
+
+      expect((await duel(db, code)).round_index).toBe(1);
+      const res = await db.query<{ user_id: string; score: number; lon: number | null; locked: boolean }>(
+        "select user_id, score, lon, locked_at is not null as locked from public.duel_guesses where duel_id = $1 order by user_id",
+        [id],
+      );
+      expect(res.rows).toEqual([
+        { user_id: ALICE, score: 4000, lon: 2.1, locked: true },
+        { user_id: BOB, score: 2500, lon: 2.2, locked: false },
+        { user_id: CAROL, score: 0, lon: null, locked: false },
+      ]);
+      const left = await db.query("select * from public.duel_pins where duel_id = $1", [id]);
+      expect(left.rows).toHaveLength(0);
+    });
+
+    it("never start the grace period, end the round, or wake the other players", async () => {
+      const { id, code, version, deadline_in } = await startedDuel(db);
+      await pin(db, id, ALICE, 0, 3000);
+      await pin(db, id, BOB, 0, 3000);
+      const row = await duel(db, code);
+      expect(row).toMatchObject({ round_index: 0, version });
+      expect(row.deadline_in).toBeCloseTo(deadline_in, 0);
+    });
+
+    it("lose to a lock, which keeps its own answer", async () => {
+      const { id, code } = await startedDuel(db);
+      await lock(db, id, ALICE, 0, 4000);
+      await pin(db, id, ALICE, 0, 100);
+      await lock(db, id, BOB, 0, 3000);
+      expect((await duel(db, code)).round_index).toBe(1);
+      expect((await guesses(db, id)).map((g) => g.score)).toEqual([4000, 3000]);
+    });
+
+    it("are refused outside the current round's time, and from outsiders", async () => {
+      const code = await createDuel(db);
+      await joinDuel(db, code);
+      const { id } = await duel(db, code);
+      await expect(pin(db, id, ALICE, 0, 1)).rejects.toThrow(/not_started/);
+      await elapse(db, id, DUEL_COUNTDOWN_MS / 1000);
+      await expect(pin(db, id, CAROL, 0, 1)).rejects.toThrow(/not_participant/);
+      await expect(pin(db, id, ALICE, 1, 1)).rejects.toThrow(/wrong_round/);
+      await elapse(db, id, ROUND_S + DUEL_TOLERANCE_MS / 1000 + 0.1);
+      await expect(pin(db, id, ALICE, 0, 1)).rejects.toThrow(/too_late/);
+    });
+
+    it("are hidden from clients", async () => {
+      await expect(asRole(db, "authenticated", ALICE, () => db.query("select * from public.duel_pins"))).rejects.toThrow(/permission denied/);
+      await expect(
+        asRole(db, "authenticated", ALICE, () => db.query("select public.duel_pin(gen_random_uuid(), $1, 0::smallint, 1, 1, 1, 1)", [ALICE])),
+      ).rejects.toThrow(/permission denied/);
     });
   });
 

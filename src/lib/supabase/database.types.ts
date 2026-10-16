@@ -113,6 +113,21 @@ export type Database = {
         Update: Partial<Database["public"]["Tables"]["duel_players"]["Insert"]>;
         Relationships: [];
       };
+      duel_pins: {
+        Row: {
+          duel_id: string;
+          round_index: number;
+          user_id: string;
+          lon: number;
+          lat: number;
+          distance_km: number;
+          score: number;
+          placed_at: string;
+        };
+        Insert: Omit<Database["public"]["Tables"]["duel_pins"]["Row"], "placed_at"> & { placed_at?: string };
+        Update: Partial<Database["public"]["Tables"]["duel_pins"]["Insert"]>;
+        Relationships: [];
+      };
       duel_guesses: {
         Row: {
           duel_id: string;
@@ -198,6 +213,18 @@ export type Database = {
         Returns: string;
       };
       duel_lock: {
+        Args: {
+          p_duel: string;
+          p_user: string;
+          p_round: number;
+          p_lon: number;
+          p_lat: number;
+          p_distance_km: number;
+          p_score: number;
+        };
+        Returns: undefined;
+      };
+      duel_pin: {
         Args: {
           p_duel: string;
           p_user: string;

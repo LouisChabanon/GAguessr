@@ -34,14 +34,22 @@ export function DuelActionBar({ duel, view, revealed, targetName, ref }: DuelAct
 
   return (
     <footer ref={ref} className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex flex-col items-center gap-2 p-3 sm:p-6">
+      {duel.isConnectionUnstable && (
+        <p className="panel enter-up pointer-events-auto flex items-center gap-2 rounded-full px-4 py-1.5 text-sm" role="status" data-testid="duel-connection">
+          <span className="size-2 animate-pulse rounded-full bg-poor" aria-hidden />
+          Connexion instable, reconnexion…
+        </p>
+      )}
       <Scoreboard players={view.players} colors={colors} showLocks={phase !== "reveal"} />
       {phase === "guessing" && <GuessPanel duel={duel} view={view} />}
       {phase === "locked" && (
         <div className="panel enter-up pointer-events-auto flex items-center gap-3 rounded-2xl px-5 py-3" role="status" data-testid="duel-locked">
           <span className="size-2 animate-pulse rounded-full bg-accent" aria-hidden />
           <p className="text-sm">
-            Épingle validée.{" "}
-            {waitingFor.length === 0
+            {duel.isSendingLock ? "Envoi de votre épingle…" : "Épingle validée."}{" "}
+            {duel.isSendingLock
+              ? null
+              : waitingFor.length === 0
               ? "Résultat…"
               : waitingFor.length === 1
                 ? `En attente de ${playerName(waitingFor[0])}…`
@@ -131,6 +139,13 @@ function RevealPanel({ duel, view, round, targetName, colors }: RevealPanelProps
         <span className="mr-1.5 inline-block size-2 rounded-full bg-answer align-middle" aria-hidden />
         {targetName}
       </p>
+      {duel.notice && (
+        <p className="mt-2 rounded-lg bg-poor/10 px-3 py-2 text-xs text-pretty text-poor" role="alert" data-testid="duel-late-lock">
+          {duel.notice === "lock_too_late"
+            ? "Votre validation n’est pas arrivée à temps : c’est votre dernière épingle reçue qui compte."
+            : "Votre validation n’est pas arrivée à temps, ni aucune épingle : la connexion était trop lente."}
+        </p>
+      )}
       <ul className="mt-3 max-h-56 space-y-2.5 overflow-y-auto">
         {rows.map(({ player, answer }) => (
           <li key={player.seat}>
@@ -140,6 +155,7 @@ function RevealPanel({ duel, view, round, targetName, colors }: RevealPanelProps
                 <span className={`truncate ${answer && answer.score === best && best > 0 ? "font-semibold" : ""}`}>{playerName(player)}</span>
                 <span className="shrink-0 font-mono text-xs text-muted tabular-nums">
                   {answer?.distanceKm == null ? "temps écoulé" : formatDistance(answer.distanceKm)}
+                  {answer?.guess && !answer.isLocked && " · non validée"}
                 </span>
               </span>
               <span className="font-mono text-lg font-semibold tabular-nums" style={{ color: TIER_COLOR[scoreTier(answer?.score ?? 0)] }}>

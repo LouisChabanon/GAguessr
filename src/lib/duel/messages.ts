@@ -10,6 +10,7 @@ export const DUEL_ERROR_MESSAGES: Readonly<Record<DuelError, string>> = {
   not_enough_players: "Il faut au moins deux joueurs pour lancer la partie.",
   pseudo_required: "Choisissez un pseudo pour que votre adversaire sache qui il affronte.",
   too_late: "Trop tard pour cette manche.",
+  already_locked: "Votre épingle est déjà validée.",
   invalid: "Le duel est momentanément indisponible, réessayez.",
   unauthenticated: "Le duel est momentanément indisponible, réessayez.",
   unavailable: "Le duel est momentanément indisponible, réessayez.",

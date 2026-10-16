@@ -17,7 +17,8 @@ const RPC_ERRORS: Readonly<Record<string, DuelError>> = {
   not_playing: "too_late",
   wrong_round: "too_late",
   not_started: "too_late",
-  already_locked: "too_late",
+  too_late: "too_late",
+  already_locked: "already_locked",
   not_finished: "too_late",
 };
 
@@ -60,7 +61,7 @@ export async function loadDuelView(code: string, userId: string): Promise<DuelVi
 
   const [seats, guesses, rematch] = await Promise.all([
     admin.from("duel_players").select("user_id, seat").eq("duel_id", duel.id),
-    admin.from("duel_guesses").select("round_index, user_id, lon, lat, distance_km, score").eq("duel_id", duel.id),
+    admin.from("duel_guesses").select("round_index, user_id, lon, lat, distance_km, score, locked_at").eq("duel_id", duel.id),
     duel.rematch_id ? admin.from("duels").select("code").eq("id", duel.rematch_id).maybeSingle() : Promise.resolve(null),
   ]);
   if (seats.error) throw seats.error;

@@ -1,10 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { configureDuel, getDuel, joinDuel, leaveDuel, lockDuelGuess, requestRematch, startDuel } from "@/app/actions/duel";
+import { configureDuel, joinDuel, leaveDuel, requestRematch, startDuel } from "@/app/actions/duel";
 import { deriveDuelPhase, revealEndsAt, type DuelPhase } from "@/game/duel/phase";
 import { DUEL_TOLERANCE_MS } from "@/game/duel/rules";
 import type { DuelSettings } from "@/game/duel/settings";
+import { fetchDuel, isUnreachable, postAnswer } from "@/lib/duel/client";
+import { retryUntil, singleFlight } from "@/lib/duel/net";
 import type { DuelError, DuelResult, DuelView } from "@/lib/duel/types";
 import type { LonLat } from "@/lib/geo/distance";
 import { browserSupabase } from "@/lib/supabase/browser";
@@ -16,12 +18,24 @@ const FALLBACK_POLL_MS = 5_000;
 const SETTLE_DELAY_MS = DUEL_TOLERANCE_MS + 300;
 /** Floor between two settle attempts, in case the clocks disagree. */
 const MIN_SETTLE_WAIT_MS = 500;
+/** A pin is saved once the player stops moving it for this long: one small request, not one per click. */
+const PIN_DEBOUNCE_MS = 400;
+/** A lock keeps being retried a little past the server's own slack: the server has the last word anyway. */
+const LOCK_RETRY_SLACK_MS = 2_000;
+/** Failed syncs in a row before the player is told the connection is struggling. */
+const UNSTABLE_AFTER_FAILURES = 2;
 
 interface Synced {
   view: DuelView;
   /** Server clock minus client clock, in ms. */
   offsetMs: number;
 }
+
+/**
+ * Something to tell the player about their own answer: their lock did not arrive in time, and
+ * either their last pin counted instead, or nothing of theirs reached the server.
+ */
+export type DuelNotice = "lock_too_late" | "lock_lost";
 
 export interface UseDuel {
   view: DuelView | null;
@@ -30,12 +44,17 @@ export interface UseDuel {
   offsetMs: number;
   guess: LonLat | null;
   isBusy: boolean;
+  /** A lock is on its way: the round already shows as locked. */
+  isSendingLock: boolean;
+  /** True while syncing keeps failing (offline, very slow network). */
+  isConnectionUnstable: boolean;
+  notice: DuelNotice | null;
   /** Jumps from the last round's reveal straight to the result. */
   showResult: () => void;
   place: (guess: LonLat) => void;
   lock: () => void;
   join: () => Promise<boolean>;
-  /** Changes the lobby's settings (host only, before anyone joins); resolves to whether they were saved. */
+  /** Changes the lobby's settings (host only, before the game starts); resolves to whether they were saved. */
   configure: (settings: DuelSettings) => Promise<boolean>;
   /** The host starts the lobby before it is full. */
   start: () => Promise<boolean>;
@@ -45,25 +64,55 @@ export interface UseDuel {
   rematch: () => Promise<string | null>;
 }
 
+/** During a reveal, whether the player clicked "Valider" in that round but the server never got the lock in time. */
+function lateLockNotice(view: DuelView | null, phase: DuelPhase | null, lockedRound: number | null): DuelNotice | null {
+  if (!view || phase !== "reveal" || lockedRound !== view.rounds.length - 1) return null;
+  const mine = view.rounds.at(-1)?.answers.find((a) => a.seat === view.mySeat);
+  if (!mine || mine.isLocked) return null;
+  return mine.guess ? "lock_too_late" : "lock_lost";
+}
+
+function useOnline(): boolean {
+  const [isOnline, setIsOnline] = useState(true);
+  useEffect(() => {
+    const update = () => setIsOnline(navigator.onLine);
+    update();
+    window.addEventListener("online", update);
+    window.addEventListener("offline", update);
+    return () => {
+      window.removeEventListener("online", update);
+      window.removeEventListener("offline", update);
+    };
+  }, []);
+  return isOnline;
+}
+
 export function useDuel(code: string): UseDuel {
   const [synced, setSynced] = useState<Synced | null>(null);
   const [error, setError] = useState<DuelError | null>(null);
   // The server-clock time phases are derived from; moved on at each round boundary.
   const [now, setNow] = useState(() => Date.now());
   const [draft, setDraft] = useState<{ round: number; guess: LonLat } | null>(null);
+  const [pendingLock, setPendingLock] = useState<{ round: number; guess: LonLat } | null>(null);
+  // The last round the player clicked "Valider" in: if its answer comes back unlocked, the lock was too late.
+  const [lockedRound, setLockedRound] = useState<number | null>(null);
+  const [failures, setFailures] = useState(0);
   const [isBusy, setIsBusy] = useState(false);
   const [isResultShown, setIsResultShown] = useState(false);
-  // Answers can come back out of order; the freshest one wins. Keeping only the latest request's
-  // answer instead would starve a busy room, where every lock sets off a refresh on every client.
+  const isOnline = useOnline();
+  // Answers can come back out of order; the freshest one wins.
   const freshest = useRef(-Infinity);
+  const pinTimer = useRef<number | undefined>(undefined);
 
-  const refresh = useCallback(async () => {
+  const load = useCallback(async () => {
     const sentAt = Date.now();
-    const result = await getDuel(code).catch((): DuelResult<{ view: DuelView }> => ({ ok: false, error: "unavailable" }));
+    const result = await fetchDuel(code);
     if (!result.ok) {
-      setError(result.error);
+      if (isUnreachable(result)) setFailures((n) => n + 1);
+      else setError(result.error);
       return;
     }
+    setFailures(0);
     if (result.view.serverNow < freshest.current) return;
     freshest.current = result.view.serverNow;
     // The server read its clock about halfway through the round trip.
@@ -72,6 +121,13 @@ export function useDuel(code: string): UseDuel {
     setNow(result.view.serverNow);
     setError(null);
   }, [code]);
+  // One read at a time: on a slow link, overlapping polls would only queue up behind each other.
+  // Declared before the effects that call refresh, so it is ready when they run.
+  const flight = useRef<(() => Promise<void>) | null>(null);
+  useEffect(() => {
+    flight.current = singleFlight(load);
+  }, [load]);
+  const refresh = useCallback(() => (flight.current ?? load)(), [load]);
 
   useEffect(() => {
     ensureSession()
@@ -109,9 +165,11 @@ export function useDuel(code: string): UseDuel {
       if (document.visibilityState === "visible") void refresh();
     };
     document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("online", onVisible);
     return () => {
       window.clearInterval(id);
       document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("online", onVisible);
     };
   }, [isLive, refresh]);
 
@@ -131,25 +189,54 @@ export function useDuel(code: string): UseDuel {
     return () => timers.forEach((id) => window.clearTimeout(id));
   }, [view, offsetMs, refresh]);
 
+  useEffect(() => () => window.clearTimeout(pinTimer.current), []);
+
   const roundIndex = view?.roundIndex ?? -1;
+  const roundDeadline = view?.roundDeadline ?? null;
   const guess = draft?.round === roundIndex ? draft.guess : null;
+  const isSendingLock = pendingLock?.round === roundIndex && !view?.myLock;
   const derived = view ? deriveDuelPhase(view, now) : null;
-  const phase = derived === "reveal" && view?.status === "finished" && isResultShown ? "finished" : derived;
+  const phase =
+    derived === "reveal" && view?.status === "finished" && isResultShown
+      ? "finished"
+      : derived === "guessing" && isSendingLock
+        ? "locked"
+        : derived;
   const showResult = useCallback(() => setIsResultShown(true), []);
 
-  const place = useCallback((point: LonLat) => setDraft({ round: roundIndex, guess: point }), [roundIndex]);
+  const place = useCallback(
+    (point: LonLat) => {
+      setDraft({ round: roundIndex, guess: point });
+      // Saved in the background: if the lock never arrives in time, this pin still counts.
+      window.clearTimeout(pinTimer.current);
+      pinTimer.current = window.setTimeout(() => {
+        void postAnswer("pin", code, roundIndex, point);
+      }, PIN_DEBOUNCE_MS);
+    },
+    [code, roundIndex],
+  );
 
   const lock = useCallback(() => {
-    if (!guess || isBusy) return;
-    setIsBusy(true);
-    lockDuelGuess({ code, roundIndex, guess })
-      .then((result) => {
-        if (!result.ok && result.error !== "too_late") setError(result.error);
-      })
-      .catch((err: unknown) => console.error("[duel] lock failed", err))
-      .then(refresh)
-      .finally(() => setIsBusy(false));
-  }, [code, roundIndex, guess, isBusy, refresh]);
+    if (!guess || isSendingLock || roundDeadline === null) return;
+    // The lock carries the pin itself: no need for the pending one.
+    window.clearTimeout(pinTimer.current);
+    const round = roundIndex;
+    const deadline = roundDeadline;
+    setPendingLock({ round, guess });
+    setLockedRound(round);
+    void (async () => {
+      const result = await retryUntil(() => postAnswer("lock", code, round, guess), {
+        shouldRetry: isUnreachable,
+        // Server time to client time.
+        until: () => deadline + DUEL_TOLERANCE_MS + LOCK_RETRY_SLACK_MS - offsetMs,
+      });
+      // A retry of a lock that went through the first time answers already_locked: that is a success.
+      // too_late is told by the reveal itself, which may come before this answer on a slow link.
+      if (!result.ok && result.error !== "already_locked" && result.error !== "too_late") setError(result.error);
+      await refresh();
+      setPendingLock(null);
+    })();
+  }, [code, roundIndex, guess, isSendingLock, roundDeadline, offsetMs, refresh]);
 
   const join = useCallback(async () => {
     setIsBusy(true);
@@ -205,5 +292,23 @@ export function useDuel(code: string): UseDuel {
     }
   }, [code]);
 
-  return { view, error, phase, offsetMs, guess, isBusy, showResult, place, lock, join, configure, start, leave, rematch };
+  return {
+    view,
+    error,
+    phase,
+    offsetMs,
+    guess,
+    isBusy,
+    isSendingLock,
+    isConnectionUnstable: isLive && (!isOnline || failures >= UNSTABLE_AFTER_FAILURES),
+    notice: lateLockNotice(view, phase, lockedRound),
+    showResult,
+    place,
+    lock,
+    join,
+    configure,
+    start,
+    leave,
+    rematch,
+  };
 }

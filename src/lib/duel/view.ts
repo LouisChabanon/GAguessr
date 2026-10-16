@@ -3,7 +3,10 @@ import type { DuelGuess, DuelPlayer, DuelRound, DuelView } from "./types";
 
 type DuelRow = Database["public"]["Tables"]["duels"]["Row"];
 type SeatRow = Pick<Database["public"]["Tables"]["duel_players"]["Row"], "user_id" | "seat">;
-type GuessRow = Pick<Database["public"]["Tables"]["duel_guesses"]["Row"], "round_index" | "user_id" | "lon" | "lat" | "distance_km" | "score">;
+type GuessRow = Pick<
+  Database["public"]["Tables"]["duel_guesses"]["Row"],
+  "round_index" | "user_id" | "lon" | "lat" | "distance_km" | "score" | "locked_at"
+>;
 
 export interface DuelViewInput {
   duel: DuelRow;
@@ -15,12 +18,12 @@ export interface DuelViewInput {
   now: number;
 }
 
-const NO_GUESS: DuelGuess = { guess: null, distanceKm: null, score: 0 };
+const NO_GUESS: DuelGuess = { guess: null, distanceKm: null, score: 0, isLocked: false };
 
 function toGuess(row: GuessRow | undefined): DuelGuess {
   if (!row) return NO_GUESS;
   const guess = row.lon === null || row.lat === null ? null : ([row.lon, row.lat] as const);
-  return { guess, distanceKm: row.distance_km, score: row.score };
+  return { guess, distanceKm: row.distance_km, score: row.score, isLocked: row.locked_at !== null };
 }
 
 function toTime(value: string | null): number | null {

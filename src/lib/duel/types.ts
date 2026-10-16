@@ -7,6 +7,8 @@ export interface DuelGuess {
   guess: LonLat | null;
   distanceKm: number | null;
   score: number;
+  /** False for a pin the player placed but did not lock before the round ended. */
+  isLocked: boolean;
 }
 
 export interface DuelAnswer extends DuelGuess {
@@ -80,6 +82,7 @@ export type DuelError =
   | "too_many_players"
   | "not_enough_players"
   | "too_late"
+  | "already_locked"
   | "unavailable";
 
 export type DuelResult<T> = ({ ok: true } & T) | { ok: false; error: DuelError };
