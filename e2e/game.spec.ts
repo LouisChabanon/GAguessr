@@ -2,7 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 
 const MODES = [
   { id: "fr-nuclear-plants", title: "Centrales nucléaires", sites: 18 },
-  { id: "fr-nuclear-research", title: "Recherche et réacteurs", sites: 10 },
+  { id: "fr-nuclear-research", title: "Sites de recherche", sites: 10 },
   { id: "fr-military-nuclear", title: "Sites militaires", sites: 18 },
 ] as const;
 const PLANTS = MODES[0];
@@ -40,15 +40,17 @@ async function playFullGame(page: Page, rounds: number) {
   return summary;
 }
 
-test("home lists the French modes and the world mode", async ({ page }) => {
+test("home puts the power plants first and links every other mode and the duel", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("heading", { level: 1 })).toContainText("Placez les centrales nucléaires");
+  await expect(page.getByRole("link", { name: /^Jouer/ })).toHaveAttribute("href", `/play/${PLANTS.id}`);
   for (const mode of [...MODES, WORLD]) {
     await expect(page.getByRole("link", { name: new RegExp(`${mode.title}.*${mode.sites} sites`) })).toHaveAttribute(
       "href",
       `/play/${mode.id}`,
     );
   }
+  await expect(page.getByRole("link", { name: /^Duel/ })).toHaveAttribute("href", "/duel");
 });
 
 test("/play defaults to the power plants", async ({ page }) => {

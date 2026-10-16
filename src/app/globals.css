@@ -210,6 +210,116 @@ body {
   }
 }
 
+/* ---------- Home: demo round on a loop ---------- */
+
+/* Every element rests on the round's last frame; the loop only animates towards it. */
+.hero-demo {
+  --hero-loop: 7s;
+}
+
+.hero-pin,
+.hero-answer {
+  transform-box: fill-box;
+}
+
+.hero-pin {
+  transform-origin: 50% 100%;
+  animation: hero-pin var(--hero-loop) var(--ease-out-expo) infinite;
+}
+
+.hero-answer {
+  transform-origin: 50% 50%;
+  animation: hero-answer var(--hero-loop) var(--ease-spring) infinite;
+}
+
+.hero-line-draw {
+  stroke-dasharray: 100;
+  animation: hero-line var(--hero-loop) ease-in-out infinite;
+}
+
+.hero-chip {
+  animation: hero-chip var(--hero-loop) var(--ease-out-expo) infinite;
+}
+
+@keyframes hero-pin {
+  0%,
+  8% {
+    opacity: 0;
+    transform: translateY(-40%) scale(0.6);
+  }
+  15% {
+    opacity: 1;
+    transform: translateY(0) scale(1.06);
+  }
+  18%,
+  90% {
+    opacity: 1;
+    transform: none;
+  }
+  97%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes hero-answer {
+  0%,
+  22% {
+    opacity: 0;
+    transform: scale(0.2);
+  }
+  29%,
+  90% {
+    opacity: 1;
+    transform: none;
+  }
+  97%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes hero-line {
+  0%,
+  20% {
+    stroke-dashoffset: 100;
+    opacity: 1;
+  }
+  32%,
+  90% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+  97%,
+  100% {
+    stroke-dashoffset: 0;
+    opacity: 0;
+  }
+}
+
+@keyframes hero-chip {
+  0%,
+  33% {
+    opacity: 0;
+    transform: translateY(6px) scale(0.92);
+  }
+  40%,
+  90% {
+    opacity: 1;
+    transform: none;
+  }
+  97%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-demo * {
+    animation: none !important;
+  }
+}
+
 /* ---------- Site photos ---------- */
 
 .photo-placeholder {
