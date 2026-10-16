@@ -5,7 +5,7 @@ import type { GeoJSONSource, Map as MaplibreMap, Marker } from "maplibre-gl";
 import { useCallback, useEffect, useMemo, useRef, type KeyboardEvent } from "react";
 import type { RoundResult } from "@/game/evaluate";
 import type { LonLat } from "@/lib/geo/distance";
-import { MAP_VIEWS, REVEAL_MAX_ZOOM, revealBounds, toLngLat, type MapArea } from "@/lib/map/bounds";
+import { MAP_VIEWS, pointsBounds, REVEAL_MAX_ZOOM, toLngLat, type MapArea } from "@/lib/map/bounds";
 import { CROWD_SOURCE, REVEAL_SOURCE } from "@/lib/map/style";
 import { createMarkerElement, type MarkerKind } from "./markerElement";
 import { useMaplibre } from "./useMaplibre";
@@ -37,6 +37,8 @@ interface GameMapProps {
   pastResults: readonly RoundResult[];
   /** Where other players put the revealed site, drawn as a heatmap. */
   crowdGuesses?: readonly LonLat[];
+  /** In a duel, the other player's pin for the revealed site; framed with the answer. */
+  opponentGuess?: LonLat | null;
   interactive: boolean;
   onPick: (lonLat: LonLat) => void;
   onConfirm: () => void;
@@ -92,7 +94,7 @@ function useMarkers(map: MaplibreMap | null, kind: MarkerKind, points: readonly 
   }, [map]);
 }
 
-export function GameMap({ area, roundKey, guess, result, pastResults, crowdGuesses, interactive, onPick, onConfirm, onReady, getSafeArea }: GameMapProps) {
+export function GameMap({ area, roundKey, guess, result, pastResults, crowdGuesses, opponentGuess, interactive, onPick, onConfirm, onReady, getSafeArea }: GameMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const padding = useCallback(() => {
     const safe = getSafeArea?.() ?? NO_SAFE_AREA;
@@ -128,7 +130,12 @@ export function GameMap({ area, roundKey, guess, result, pastResults, crowdGuess
     () => pastResults.map((past) => ({ key: past.target.id, point: past.answer, title: past.target.name })),
     [pastResults],
   );
+  const opponentPoints = useMemo(
+    () => (result && opponentGuess ? [{ key: result.target.id, point: opponentGuess }] : []),
+    [result, opponentGuess],
+  );
   useMarkers(map, "guess", guessPoints);
+  useMarkers(map, "opponent", opponentPoints);
   useMarkers(map, "answer", answerPoints);
   useMarkers(map, "past", pastPoints);
 
@@ -176,11 +183,12 @@ export function GameMap({ area, roundKey, guess, result, pastResults, crowdGuess
       duration: prefersReducedMotion() ? 0 : CAMERA_DURATION_MS,
     };
     if (result) {
-      map.fitBounds(revealBounds(result.guess, result.answer), { ...options, maxZoom: REVEAL_MAX_ZOOM });
+      const framed = pointsBounds(opponentGuess ? [result.guess, result.answer, opponentGuess] : [result.guess, result.answer]);
+      map.fitBounds(framed, { ...options, maxZoom: REVEAL_MAX_ZOOM });
     } else {
       map.fitBounds(view.bounds, options);
     }
-  }, [map, result, padding, view]);
+  }, [map, result, opponentGuess, padding, view]);
 
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (!map) return;

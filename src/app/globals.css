@@ -18,6 +18,8 @@
   --answer: oklch(62% 0.23 352);
   /* Other players' guesses; matches the map heatmap (palette.ts). */
   --crowd: oklch(48% 0.2 280);
+  /* The other player's pin in a duel. */
+  --opponent: oklch(56% 0.13 215);
   --great: oklch(62% 0.16 152);
   --good: oklch(72% 0.16 72);
   --poor: oklch(60% 0.2 27);
@@ -51,6 +53,7 @@
     --accent-text: oklch(87% 0.17 95);
     --answer: oklch(72% 0.2 352);
     --crowd: oklch(72% 0.15 285);
+    --opponent: oklch(76% 0.12 210);
     --great: oklch(74% 0.16 152);
     --good: oklch(80% 0.15 78);
     --poor: oklch(70% 0.18 27);
@@ -75,6 +78,7 @@
   --color-accent-text: var(--accent-text);
   --color-answer: var(--answer);
   --color-crowd: var(--crowd);
+  --color-opponent: var(--opponent);
   --color-great: var(--great);
   --color-good: var(--good);
   --color-poor: var(--poor);
@@ -143,7 +147,8 @@ body {
   transform-origin: 50% 100%;
 }
 
-.map-marker[data-kind="guess"] .map-marker-body {
+.map-marker[data-kind="guess"] .map-marker-body,
+.map-marker[data-kind="opponent"] .map-marker-body {
   animation: pin-drop 380ms var(--ease-spring) both;
 }
 

@@ -7,6 +7,7 @@ import type { RoundResult } from "@/game/evaluate";
 import type { Submission } from "@/game/submission";
 import type { GameStanding, PseudoResult, SubmitError, SubmitResult } from "@/lib/scores/types";
 import { browserSupabase } from "@/lib/supabase/browser";
+import { ensureSession } from "@/lib/supabase/session";
 
 export type SubmissionState =
   | { status: "idle" }
@@ -20,15 +21,6 @@ export interface UseScoreSubmission {
   submit: (modeId: string, results: readonly RoundResult[], timeMs: number, startToken: Promise<string | null>) => void;
   choosePseudo: (pseudo: string) => Promise<PseudoResult>;
   reset: () => void;
-}
-
-/** Signs the visitor in anonymously the first time they finish a game; later games reuse the session. */
-async function ensureSession(): Promise<void> {
-  const auth = browserSupabase().auth;
-  const { data } = await auth.getSession();
-  if (data.session) return;
-  const { error } = await auth.signInAnonymously();
-  if (error) throw error;
 }
 
 async function sendGame(game: Omit<Submission, "startToken">, startToken: Promise<string | null>): Promise<SubmitResult> {

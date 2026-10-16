@@ -53,9 +53,16 @@ export const REVEAL_MAX_ZOOM = 9;
 
 /** Bounding box of a guess and its answer, ready for `fitBounds`. */
 export function revealBounds(guess: LonLat, answer: LonLat): Bounds {
+  return pointsBounds([guess, answer]);
+}
+
+/** Bounding box of one or more points, ready for `fitBounds`. */
+export function pointsBounds(points: readonly [LonLat, ...LonLat[]]): Bounds {
+  const lons = points.map((p) => p[0]);
+  const lats = points.map((p) => p[1]);
   return [
-    [Math.min(guess[0], answer[0]), Math.min(guess[1], answer[1])],
-    [Math.max(guess[0], answer[0]), Math.max(guess[1], answer[1])],
+    [Math.min(...lons), Math.min(...lats)],
+    [Math.max(...lons), Math.max(...lats)],
   ];
 }
 

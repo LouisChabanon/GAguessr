@@ -93,6 +93,30 @@ export default function Home() {
         </ul>
       </section>
 
+      <section aria-labelledby="duel-heading" className="mt-14 sm:mt-20">
+        <h2 id="duel-heading" className="border-b border-line pb-3 text-xs font-medium tracking-[0.16em] text-muted uppercase">
+          À deux
+        </h2>
+        <Link
+          href="/duel"
+          className="group -mx-3 mt-2 grid grid-cols-[1fr_auto] items-center gap-x-4 rounded-xl px-3 py-5 transition-colors duration-150 hover:bg-panel-solid sm:py-6"
+        >
+          <span className="min-w-0">
+            <span className="text-2xl font-semibold tracking-tight sm:text-4xl">Duel</span>
+            <span className="mt-1 block text-sm text-muted">Défiez un ami sur les mêmes sites : dès qu’il valide, vous n’avez plus que 5 s.</span>
+          </span>
+          <svg
+            className="text-muted transition-[translate,color] duration-200 group-hover:translate-x-1 group-hover:text-accent-text"
+            width="20"
+            height="20"
+            viewBox="0 0 20 20"
+            aria-hidden
+          >
+            <path d="M4 10h12m-5-5 5 5-5 5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </Link>
+      </section>
+
       <footer className="mt-auto pt-16 text-xs text-muted">
         <Link href="/credits" className="underline underline-offset-2 hover:text-ink">
           Crédits photos

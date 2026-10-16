@@ -12,7 +12,7 @@ export const CLOCK_TOLERANCE_MS = 2_000;
 const MAX_ROUNDS = 200;
 const MAX_TIME_MS = 24 * 60 * 60 * 1000;
 
-const lonLatSchema = z.tuple([z.number().min(-180).max(180), z.number().min(-90).max(90)]);
+export const lonLatSchema = z.tuple([z.number().min(-180).max(180), z.number().min(-90).max(90)]);
 
 /** What the client sends at the end of a game: what it guessed, never what it scored. */
 export const submissionSchema = z.strictObject({

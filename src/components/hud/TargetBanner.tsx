@@ -1,10 +1,8 @@
 import Link from "next/link";
-import type { Ref } from "react";
+import type { ReactNode, Ref } from "react";
 import type { Target } from "@/modes/types";
 import { buttonClass } from "@/components/ui/button";
-import type { Clock } from "@/game/gameReducer";
 import { formatScore } from "@/lib/format";
-import { Stopwatch } from "./Stopwatch";
 import { SitePhoto } from "@/components/photo/SitePhoto";
 
 interface TargetBannerProps {
@@ -15,12 +13,13 @@ interface TargetBannerProps {
   round: number;
   rounds: number;
   score: number;
-  /** Guessing time; paused while an answer is shown. */
-  clock: Clock;
+  /** The ticking time display: the stopwatch solo, the round's countdown in a duel. */
+  timer: ReactNode;
+  timerLabel?: string;
   ref?: Ref<HTMLElement>;
 }
 
-export function TargetBanner({ modeTitle, showPhoto, target, round, rounds, score, clock, ref }: TargetBannerProps) {
+export function TargetBanner({ modeTitle, showPhoto, target, round, rounds, score, timer, timerLabel = "Temps", ref }: TargetBannerProps) {
   return (
     <header
       ref={ref}
@@ -67,10 +66,8 @@ export function TargetBanner({ modeTitle, showPhoto, target, round, rounds, scor
         </div>
         <div className="h-7 w-px bg-line" aria-hidden />
         <div>
-          <dt className="font-sans text-[10px] tracking-[0.14em] text-muted uppercase">Temps</dt>
-          <dd data-testid="stopwatch">
-            <Stopwatch stoppedMs={clock.stoppedMs} runningSince={clock.runningSince} />
-          </dd>
+          <dt className="font-sans text-[10px] tracking-[0.14em] text-muted uppercase">{timerLabel}</dt>
+          <dd data-testid="stopwatch">{timer}</dd>
         </div>
         <div className="h-7 w-px bg-line" aria-hidden />
         <div>

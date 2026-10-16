@@ -67,6 +67,66 @@ export type Database = {
         Update: Partial<Database["public"]["Tables"]["guesses"]["Insert"]>;
         Relationships: [];
       };
+      duels: {
+        Row: {
+          id: string;
+          code: string;
+          mode_id: string;
+          target_ids: string[];
+          host_id: string;
+          guest_id: string | null;
+          status: "lobby" | "playing" | "finished" | "cancelled";
+          round_index: number;
+          round_started_at: string | null;
+          round_deadline: string | null;
+          version: number;
+          rematch_id: string | null;
+          created_at: string;
+          finished_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          code: string;
+          mode_id: string;
+          target_ids: string[];
+          host_id: string;
+          guest_id?: string | null;
+          status?: "lobby" | "playing" | "finished" | "cancelled";
+          round_index?: number;
+          round_started_at?: string | null;
+          round_deadline?: string | null;
+          version?: number;
+          rematch_id?: string | null;
+          created_at?: string;
+          finished_at?: string | null;
+        };
+        Update: Partial<Database["public"]["Tables"]["duels"]["Insert"]>;
+        Relationships: [];
+      };
+      duel_guesses: {
+        Row: {
+          duel_id: string;
+          round_index: number;
+          user_id: string;
+          lon: number | null;
+          lat: number | null;
+          distance_km: number | null;
+          score: number;
+          locked_at: string | null;
+        };
+        Insert: {
+          duel_id: string;
+          round_index: number;
+          user_id: string;
+          lon?: number | null;
+          lat?: number | null;
+          distance_km?: number | null;
+          score: number;
+          locked_at?: string | null;
+        };
+        Update: Partial<Database["public"]["Tables"]["duel_guesses"]["Insert"]>;
+        Relationships: [];
+      };
     };
     Views: { [_ in never]: never };
     Functions: {
@@ -101,6 +161,34 @@ export type Database = {
       mode_overview: {
         Args: { p_mode: string };
         Returns: { games: number; players: number; avg_score: number | null; avg_max_score: number | null }[];
+      };
+      create_duel: {
+        Args: { p_host: string; p_mode: string; p_targets: string[] };
+        Returns: string;
+      };
+      join_duel: {
+        Args: { p_code: string; p_user: string };
+        Returns: undefined;
+      };
+      duel_tick: {
+        Args: { p_duel: string };
+        Returns: undefined;
+      };
+      duel_lock: {
+        Args: {
+          p_duel: string;
+          p_user: string;
+          p_round: number;
+          p_lon: number;
+          p_lat: number;
+          p_distance_km: number;
+          p_score: number;
+        };
+        Returns: undefined;
+      };
+      duel_rematch: {
+        Args: { p_duel: string; p_user: string; p_targets: string[] };
+        Returns: string;
       };
     };
     Enums: { [_ in never]: never };

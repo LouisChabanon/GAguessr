@@ -1,10 +1,15 @@
-export type MarkerKind = "guess" | "answer" | "past";
+export type MarkerKind = "guess" | "opponent" | "answer" | "past";
 
 /** Teardrop whose tip sits at the bottom centre of a 20×28 box. */
-const PIN_SVG = `<svg width="20" height="28" viewBox="-10 -27 20 28" aria-hidden="true">
-  <path d="M0 0C-1.6-5.2-9-9.4-9-16.2a9 9 0 1 1 18 0C9-9.4 1.6-5.2 0 0Z" fill="var(--accent)" stroke="var(--accent-ink)" stroke-width="1.5"/>
-  <circle cy="-16.2" r="3.4" fill="var(--accent-ink)"/>
+const pinSvg = (fill: string, ink: string) => `<svg width="20" height="28" viewBox="-10 -27 20 28" aria-hidden="true">
+  <path d="M0 0C-1.6-5.2-9-9.4-9-16.2a9 9 0 1 1 18 0C9-9.4 1.6-5.2 0 0Z" fill="${fill}" stroke="${ink}" stroke-width="1.5"/>
+  <circle cy="-16.2" r="3.4" fill="${ink}"/>
 </svg>`;
+
+const PIN_SVG = {
+  guess: pinSvg("var(--accent)", "var(--accent-ink)"),
+  opponent: pinSvg("var(--opponent)", "var(--panel-solid)"),
+} as const;
 
 const DOT_SVG = {
   answer: `<svg width="24" height="24" viewBox="-12 -12 24 24" aria-hidden="true">
@@ -25,7 +30,7 @@ export function createMarkerElement(kind: MarkerKind, title?: string): HTMLEleme
   if (title) outer.title = title; // set as text, never parsed as HTML
   const body = document.createElement("div");
   body.className = "map-marker-body";
-  body.innerHTML = kind === "guess" ? PIN_SVG : DOT_SVG[kind];
+  body.innerHTML = kind === "guess" || kind === "opponent" ? PIN_SVG[kind] : DOT_SVG[kind];
   outer.append(body);
   return outer;
 }

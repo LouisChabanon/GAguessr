@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ActionBar } from "@/components/hud/ActionBar";
+import { Stopwatch } from "@/components/hud/Stopwatch";
 import { TargetBanner } from "@/components/hud/TargetBanner";
 import { GameMap, type SafeArea } from "@/components/map/GameMap";
 import { MapLoading } from "./MapLoading";
@@ -77,7 +78,7 @@ export function Game({ modeId }: GameProps) {
             round={state.roundIndex + 1}
             rounds={state.targets.length}
             score={total}
-            clock={state}
+            timer={<Stopwatch stoppedMs={state.stoppedMs} runningSince={state.runningSince} />}
           />
           <ActionBar
             ref={bottomBarRef}
