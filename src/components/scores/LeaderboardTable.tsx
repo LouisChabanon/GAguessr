@@ -31,11 +31,13 @@ export function LeaderboardTable({ rows }: { rows: readonly LeaderboardRow[] }) 
               <span className="block text-xs text-muted">{formatDate(new Date(row.playedAt))}</span>
             </span>
             <span className="text-right font-mono tabular-nums">
-              <span className="block">
+              <span className="block font-semibold">{formatScore(row.rankingScore)}</span>
+              <span className="block text-xs text-muted">
                 {formatScore(row.totalScore)}
-                <span className="text-xs text-muted"> / {formatScore(row.maxScore)}</span>
+                {row.rankingScore > row.totalScore && <> + {formatScore(row.rankingScore - row.totalScore)} vitesse</>}
+                {" · "}
+                {formatDuration(row.timeMs)}
               </span>
-              <span className="block text-xs text-muted">{formatDuration(row.timeMs)}</span>
             </span>
           </li>
         );

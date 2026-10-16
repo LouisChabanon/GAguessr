@@ -68,6 +68,7 @@ export async function getLeaderboard(modeId: string, period: LeaderboardPeriod):
     return data.map((r) => ({
       rank: r.rank,
       pseudo: r.pseudo,
+      rankingScore: r.ranking_score,
       totalScore: r.total_score,
       maxScore: r.max_score,
       timeMs: r.time_ms,

@@ -40,9 +40,9 @@ describe("score queries", () => {
   });
 
   it("maps leaderboard rows and limits the weekly board to the last 7 days", async () => {
-    rpc.mockReturnValue(result([{ rank: 1, pseudo: "Lou", total_score: 9000, max_score: 90000, time_ms: 61000, played_at: "2026-10-15T10:00:00Z" }]));
+    rpc.mockReturnValue(result([{ rank: 1, pseudo: "Lou", ranking_score: 9600, total_score: 9000, max_score: 90000, time_ms: 61000, played_at: "2026-10-15T10:00:00Z" }]));
     const rows = await getLeaderboard("fr-nuclear-plants", "week");
-    expect(rows).toEqual([{ rank: 1, pseudo: "Lou", totalScore: 9000, maxScore: 90000, timeMs: 61000, playedAt: "2026-10-15T10:00:00Z" }]);
+    expect(rows).toEqual([{ rank: 1, pseudo: "Lou", rankingScore: 9600, totalScore: 9000, maxScore: 90000, timeMs: 61000, playedAt: "2026-10-15T10:00:00Z" }]);
     const since = Date.parse(rpc.mock.calls[0][1].p_since);
     expect(Date.now() - since).toBeCloseTo(7 * 24 * 3600 * 1000, -4);
 

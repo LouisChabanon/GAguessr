@@ -5,13 +5,15 @@ import { useId, type FormEvent } from "react";
 import { buttonClass } from "@/components/ui/button";
 import type { PseudoDraft } from "@/hooks/usePseudoDraft";
 import type { SubmissionState } from "@/hooks/useScoreSubmission";
-import { formatPercent, formatRank } from "@/lib/format";
+import { formatPercent, formatRank, formatScore } from "@/lib/format";
 import { PSEUDO_MAX } from "@/lib/scores/pseudo";
 import type { GameStanding } from "@/lib/scores/types";
 
 interface SummaryStandingProps {
   modeId: string;
   submission: SubmissionState;
+  /** The game's precision points, before the speed bonus. */
+  totalScore: number;
   pseudoDraft: PseudoDraft;
 }
 
@@ -23,7 +25,7 @@ const ERROR_NOTES: Readonly<Record<Exclude<SubmissionState, { status: "idle" | "
 };
 
 /** How the game ranks against everyone else's; never blocks the summary. */
-export function SummaryStanding({ modeId, submission, pseudoDraft }: SummaryStandingProps) {
+export function SummaryStanding({ modeId, submission, totalScore, pseudoDraft }: SummaryStandingProps) {
   if (submission.status === "idle") return null;
   if (submission.status === "pending") {
     return (
@@ -39,14 +41,23 @@ export function SummaryStanding({ modeId, submission, pseudoDraft }: SummaryStan
       </p>
     );
   }
-  return <Standing modeId={modeId} standing={submission.standing} pseudoDraft={pseudoDraft} />;
+  return <Standing modeId={modeId} standing={submission.standing} totalScore={totalScore} pseudoDraft={pseudoDraft} />;
 }
 
-function Standing({ modeId, standing, pseudoDraft }: { modeId: string; standing: GameStanding; pseudoDraft: PseudoDraft }) {
+function Standing({ modeId, standing, totalScore, pseudoDraft }: { modeId: string; standing: GameStanding; totalScore: number; pseudoDraft: PseudoDraft }) {
   const isFirstGame = standing.games <= 1;
+  const speedBonus = standing.rankingScore - totalScore;
   return (
     <div className={`enter-up mt-5 rounded-2xl border p-4 ${standing.pseudo ? "border-line" : "border-accent bg-accent/10"}`} data-testid="standing">
-      <p className="text-sm">
+      <p className="text-sm" data-testid="ranking-score">
+        <strong className="font-mono font-semibold tabular-nums">{formatScore(standing.rankingScore)}</strong> points de classement
+        {speedBonus > 0 && (
+          <span className="text-muted">
+            , dont <span className="font-mono tabular-nums">+{formatScore(speedBonus)}</span> de vitesse
+          </span>
+        )}
+      </p>
+      <p className="mt-1 text-sm">
         {isFirstGame ? (
           "Première partie enregistrée sur ce mode."
         ) : (

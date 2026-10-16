@@ -7,6 +7,8 @@ export interface GameStanding {
   /** All-time leaderboard rank this game earns its player. */
   rank: number;
   games: number;
+  /** Precision points plus the speed bonus: what the leaderboard ranks by. */
+  rankingScore: number;
   /** The player's pseudo, or null if they have never chosen one. */
   pseudo: string | null;
 }
@@ -38,6 +40,8 @@ export type LeaderboardPeriod = "all" | "week";
 export interface LeaderboardRow {
   rank: number;
   pseudo: string;
+  /** Precision points plus the speed bonus: what the leaderboard ranks by. */
+  rankingScore: number;
   totalScore: number;
   maxScore: number;
   timeMs: number;

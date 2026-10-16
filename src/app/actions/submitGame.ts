@@ -1,6 +1,7 @@
 "use server";
 
 import { updateTag } from "next/cache";
+import { verifyGameStart } from "@/game/gameToken";
 import { parseSubmission, validateSubmission, type ValidatedGame } from "@/game/submission";
 import { adminSupabase } from "@/lib/supabase/admin";
 import { serverSupabase } from "@/lib/supabase/server";
@@ -38,7 +39,8 @@ async function standingOf(gameId: string, userId: string): Promise<GameStanding>
   ]);
   if (standing.error) throw standing.error;
   if (profile.error) throw profile.error;
-  return { ...standing.data, pseudo: profile.data?.pseudo ?? null };
+  const { ranking_score: rankingScore, ...rest } = standing.data;
+  return { ...rest, rankingScore, pseudo: profile.data?.pseudo ?? null };
 }
 
 /**
@@ -54,7 +56,14 @@ export async function submitGame(input: unknown): Promise<SubmitResult> {
     const { data: auth } = await (await serverSupabase()).auth.getUser();
     if (!auth.user) return { ok: false, error: "unauthenticated" };
 
-    const validation = validateSubmission(mode, await mode.loadTargets(), parsed.data);
+    const now = Date.now();
+    const start = verifyGameStart(parsed.data.startToken, mode.id, now);
+    if (!start.ok) {
+      console.warn("[submitGame] rejected", { mode: mode.id, reason: "bad_token" });
+      return { ok: false, error: "invalid" };
+    }
+
+    const validation = validateSubmission(mode, await mode.loadTargets(), parsed.data, { startedAt: start.startedAt, now });
     if (!validation.ok) {
       console.warn("[submitGame] rejected", { mode: mode.id, reason: validation.reason });
       return { ok: false, error: "invalid" };

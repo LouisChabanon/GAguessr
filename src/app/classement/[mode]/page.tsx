@@ -4,7 +4,9 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { LeaderboardTable } from "@/components/scores/LeaderboardTable";
 import { ModePageHeader } from "@/components/scores/ModePageHeader";
+import { formatDuration, formatPercent } from "@/lib/format";
 import { getLeaderboard } from "@/lib/scores/queries";
+import { SPEED_BONUS_MAX, SPEED_BONUS_ZERO_MS_PER_ROUND } from "@/lib/scores/speedBonus";
 import type { LeaderboardPeriod } from "@/lib/scores/types";
 import { GAME_MODES, getMode } from "@/modes/registry";
 
@@ -63,7 +65,10 @@ async function ModeLeaderboard(props: PageProps<"/classement/[mode]">) {
   return (
     <>
       <ModePageHeader mode={mode} current="classement" />
-      <p className="mt-6 max-w-xl text-sm text-muted">Meilleure partie de chaque joueur ; à score égal, le plus rapide passe devant.</p>
+      <p className="mt-6 max-w-xl text-sm text-muted">
+        Meilleure partie de chaque joueur. Aux points de précision s’ajoute un bonus vitesse : jusqu’à +{formatPercent(SPEED_BONUS_MAX)}, qui
+        diminue avec le temps moyen par manche et disparaît à {formatDuration(SPEED_BONUS_ZERO_MS_PER_ROUND)}.
+      </p>
       <Suspense fallback={<div className="mt-6 h-96 animate-pulse rounded-2xl bg-line/50" />}>
         <Board modeId={mode.id} searchParams={props.searchParams} />
       </Suspense>

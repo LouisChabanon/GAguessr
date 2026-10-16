@@ -6,7 +6,9 @@ import { evaluateGuess, totalScore } from "./evaluate";
 import { roundCount } from "./pickTargets";
 
 /** A human needs at least this long per round to read the target and drop a pin. */
-export const MIN_MS_PER_ROUND = 1_000;
+export const MIN_MS_PER_ROUND = 1_500;
+/** Slack between the client's stopwatch and the server's view of the game, for request latency. */
+export const CLOCK_TOLERANCE_MS = 2_000;
 const MAX_ROUNDS = 200;
 const MAX_TIME_MS = 24 * 60 * 60 * 1000;
 
@@ -16,6 +18,7 @@ const lonLatSchema = z.tuple([z.number().min(-180).max(180), z.number().min(-90)
 export const submissionSchema = z.strictObject({
   modeId: z.string().min(1).max(64),
   timeMs: z.number().int().min(0).max(MAX_TIME_MS),
+  startToken: z.string().min(1).max(512),
   rounds: z
     .array(z.strictObject({ targetId: z.string().min(1).max(128), guess: lonLatSchema }))
     .min(1)
@@ -25,7 +28,15 @@ export const submissionSchema = z.strictObject({
 export interface Submission {
   modeId: string;
   timeMs: number;
+  /** From startGame: proves when the server saw the game begin. */
+  startToken: string;
   rounds: readonly { targetId: string; guess: LonLat }[];
+}
+
+/** When the server saw the game start, and when it received the submission (ms). */
+export interface ServerClock {
+  startedAt: number;
+  now: number;
 }
 
 export function parseSubmission(input: unknown): z.ZodSafeParseResult<Submission> {
@@ -47,7 +58,7 @@ export interface ValidatedGame {
   rounds: readonly ValidatedRound[];
 }
 
-export type RejectionReason = "unknown_target" | "duplicate_target" | "round_count" | "too_fast";
+export type RejectionReason = "unknown_target" | "duplicate_target" | "round_count" | "too_fast" | "clock_mismatch";
 
 export type ValidationResult = { ok: true; game: ValidatedGame } | { ok: false; reason: RejectionReason };
 
@@ -56,6 +67,7 @@ export function validateSubmission(
   mode: Pick<GameModeMeta, "scaleKm" | "roundsPerGame">,
   targets: readonly Target[],
   submission: Submission,
+  clock: ServerClock,
 ): ValidationResult {
   const byId = new Map(targets.map((t) => [t.id, t]));
   const seen = new Set<string>();
@@ -69,6 +81,10 @@ export function validateSubmission(
   }
   if (submission.timeMs < submission.rounds.length * MIN_MS_PER_ROUND) {
     return { ok: false, reason: "too_fast" };
+  }
+  // Guessing time excludes reveals, so it can never exceed the game's real duration.
+  if (submission.timeMs > clock.now - clock.startedAt + CLOCK_TOLERANCE_MS) {
+    return { ok: false, reason: "clock_mismatch" };
   }
 
   const results = submission.rounds.map(({ targetId, guess }) => evaluateGuess(byId.get(targetId)!, guess, mode.scaleKm));

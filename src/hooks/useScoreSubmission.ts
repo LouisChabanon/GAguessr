@@ -16,7 +16,8 @@ export type SubmissionState =
 
 export interface UseScoreSubmission {
   submission: SubmissionState;
-  submit: (modeId: string, results: readonly RoundResult[], timeMs: number) => void;
+  /** `startToken` is startGame's answer for this game; without one the game cannot be ranked. */
+  submit: (modeId: string, results: readonly RoundResult[], timeMs: number, startToken: Promise<string | null>) => void;
   choosePseudo: (pseudo: string) => Promise<PseudoResult>;
   reset: () => void;
 }
@@ -30,7 +31,10 @@ async function ensureSession(): Promise<void> {
   if (error) throw error;
 }
 
-async function sendGame(payload: Submission): Promise<SubmitResult> {
+async function sendGame(game: Omit<Submission, "startToken">, startToken: Promise<string | null>): Promise<SubmitResult> {
+  const token = await startToken;
+  if (!token) return { ok: false, error: "invalid" };
+  const payload: Submission = { ...game, startToken: token };
   await ensureSession();
   const first = await submitGame(payload);
   if (first.ok || first.error !== "unauthenticated") return first;
@@ -50,15 +54,15 @@ export function useScoreSubmission(): UseScoreSubmission {
   // Ignores answers to a game the player has already restarted.
   const attempt = useRef(0);
 
-  const submit = useCallback((modeId: string, results: readonly RoundResult[], timeMs: number) => {
+  const submit = useCallback((modeId: string, results: readonly RoundResult[], timeMs: number, startToken: Promise<string | null>) => {
     const current = ++attempt.current;
     setSubmission({ status: "pending" });
-    const payload: Submission = {
+    const game: Omit<Submission, "startToken"> = {
       modeId,
       timeMs: Math.round(timeMs),
       rounds: results.map((r) => ({ targetId: r.target.id, guess: r.guess })),
     };
-    sendGame(payload)
+    sendGame(game, startToken)
       .then((result): SubmissionState => (result.ok ? { status: "done", standing: result.standing } : { status: "error", error: result.error }))
       .catch((error: unknown): SubmissionState => {
         console.error("[scores] submission failed", error);

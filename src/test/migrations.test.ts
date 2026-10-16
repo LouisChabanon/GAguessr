@@ -1,5 +1,6 @@
 import type { PGlite } from "@electric-sql/pglite";
 import { beforeEach, describe, expect, it } from "vitest";
+import { SPEED_BONUS_MAX, SPEED_BONUS_ZERO_MS_PER_ROUND } from "@/lib/scores/speedBonus";
 import { asRole, createTestDb } from "./supabaseDb";
 
 const ALICE = "00000000-0000-4000-8000-00000000000a";
@@ -21,7 +22,8 @@ function guess(target: string, round: number, distanceKm: number, score: number)
 }
 
 async function insertGame(db: PGlite, user: string, total: number, timeMs: number, guesses: GuessRow[], minInterval = "0 seconds") {
-  const payload = { user_id: user, mode_id: MODE, total_score: total, max_score: 10_000, time_ms: timeMs, guesses };
+  const maxScore = Math.max(10_000, 5000 * guesses.length);
+  const payload = { user_id: user, mode_id: MODE, total_score: total, max_score: maxScore, time_ms: timeMs, guesses };
   return asRole(db, "service_role", null, async () => {
     const res = await db.query<{ id: string }>("select public.insert_game($1::jsonb, $2::interval) as id", [JSON.stringify(payload), minInterval]);
     return res.rows[0].id;
@@ -134,6 +136,60 @@ describe("scores and stats migration", () => {
       );
       // Lower: the 5000 game, out of 5 games. Above it: Alice and Bob (Carol's own 9900 is ignored).
       expect(res.rows[0]).toEqual({ percentile: 0.2, rank: 3, games: 5 });
+    });
+  });
+
+  describe("speed ranking", () => {
+    const rounds = (count: number, total: number) => Array.from({ length: count }, (_, i) => guess(`site-${i}`, i, 1, total / count));
+
+    async function rankingOf(id: string): Promise<number> {
+      const res = await db.query<{ ranking_score: number }>("select ranking_score from public.games where id = $1", [id]);
+      return res.rows[0].ranking_score;
+    }
+
+    it.each([
+      [49_500, 60_000, 10, 53_460],
+      [49_800, 150_000, 10, 52_290],
+      [10_000, 0, 2, 11_000],
+      [10_000, 60_000, 2, 10_000],
+      [10_000, 120_000, 2, 10_000],
+    ])("rates %i points in %i ms over %i rounds as %i", async (total, timeMs, count, expected) => {
+      const id = await insertGame(db, ALICE, total, timeMs, rounds(count, total));
+      expect(await rankingOf(id)).toBe(expected);
+    });
+
+    it("matches the constants the UI explains", async () => {
+      const fast = await insertGame(db, ALICE, 10_000, 0, rounds(1, 10_000));
+      expect(await rankingOf(fast)).toBe(Math.round(10_000 * (1 + SPEED_BONUS_MAX)));
+      const slow = await insertGame(db, BOB, 10_000, SPEED_BONUS_ZERO_MS_PER_ROUND, rounds(1, 10_000));
+      expect(await rankingOf(slow)).toBe(10_000);
+    });
+
+    it("ranks a fast precise game above a slightly more precise slow one", async () => {
+      await setPseudo(db, ALICE, "Alice");
+      await setPseudo(db, BOB, "Bob");
+      await insertGame(db, ALICE, 49_800, 150_000, rounds(10, 49_800));
+      await insertGame(db, BOB, 49_500, 60_000, rounds(10, 49_500));
+      await insertGame(db, ALICE, 49_000, 30_000, rounds(10, 49_000));
+      const res = await db.query<{ rank: number; pseudo: string; ranking_score: number; total_score: number }>(
+        "select rank::int, pseudo, ranking_score, total_score from public.leaderboard($1)",
+        [MODE],
+      );
+      // Bob: 49 500 at 6 s/round → 53 460. Alice: 49 800 at 15 s/round → 52 290, so her best is 49 000 at 3 s/round → 53 410.
+      expect(res.rows).toEqual([
+        { rank: 1, pseudo: "Bob", ranking_score: 53_460, total_score: 49_500 },
+        { rank: 2, pseudo: "Alice", ranking_score: 53_410, total_score: 49_000 },
+      ]);
+    });
+
+    it("places a game by its rating", async () => {
+      await setPseudo(db, BOB, "Bob");
+      await insertGame(db, BOB, 49_800, 150_000, rounds(10, 49_800));
+      const id = await insertGame(db, ALICE, 49_500, 60_000, rounds(10, 49_500));
+      const res = await asRole(db, "service_role", null, () =>
+        db.query<{ percentile: number; rank: number; ranking_score: number }>("select percentile, rank::int, ranking_score from public.game_standing($1)", [id]),
+      );
+      expect(res.rows[0]).toEqual({ percentile: 0.5, rank: 1, ranking_score: 53_460 });
     });
   });
 

@@ -24,6 +24,7 @@ export type Database = {
           max_score: number;
           time_ms: number;
           rounds: number;
+          ranking_score: number;
           created_at: string;
         };
         Insert: {
@@ -78,6 +79,7 @@ export type Database = {
         Returns: {
           rank: number;
           pseudo: string;
+          ranking_score: number;
           total_score: number;
           max_score: number;
           time_ms: number;
@@ -86,7 +88,7 @@ export type Database = {
       };
       game_standing: {
         Args: { p_game: string };
-        Returns: { percentile: number; rank: number; games: number }[];
+        Returns: { percentile: number; rank: number; games: number; ranking_score: number }[];
       };
       target_stats: {
         Args: { p_mode: string; p_within_km: number };
