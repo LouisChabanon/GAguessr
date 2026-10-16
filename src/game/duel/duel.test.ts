@@ -1,14 +1,13 @@
 import { describe, expect, it } from "vitest";
-import type { DuelRound } from "@/lib/duel/types";
+import type { DuelPlayer, DuelRound } from "@/lib/duel/types";
 import { normalizeDuelCode } from "./code";
-import { duelOutcome } from "./outcome";
+import { duelStandings, duelVerdict } from "./outcome";
 import { deriveDuelPhase, remainingMs, revealEndsAt } from "./phase";
 import { DUEL_REVEAL_MS } from "./rules";
 
-const round = (me: number, opponent: number): DuelRound => ({
+const round = (...scores: number[]): DuelRound => ({
   targetId: "t",
-  me: { guess: [2, 46], distanceKm: 10, score: me },
-  opponent: { guess: null, distanceKm: null, score: opponent },
+  answers: scores.map((score, seat) => ({ seat, guess: null, distanceKm: null, score })),
 });
 
 describe("normalizeDuelCode", () => {
@@ -60,14 +59,22 @@ describe("remainingMs", () => {
   });
 });
 
-describe("duelOutcome", () => {
-  it("sums each side and names the higher total", () => {
-    expect(duelOutcome([round(4000, 1000), round(0, 2500)])).toEqual({ myTotal: 4000, opponentTotal: 3500, winner: "me" });
-    expect(duelOutcome([round(1000, 4000)]).winner).toBe("opponent");
+describe("duelStandings", () => {
+  const player = (seat: number, total: number, isMe = false): DuelPlayer => ({ seat, pseudo: `P${seat}`, isMe, isHost: seat === 0, total, hasLocked: false });
+
+  it("ranks by total, sharing places on ties and skipping the next", () => {
+    const standings = duelStandings([player(0, 3000, true), player(1, 5000), player(2, 3000), player(3, 1000)]);
+    expect(standings.map((s) => [s.player.seat, s.place])).toEqual([
+      [1, 1],
+      [0, 2],
+      [2, 2],
+      [3, 4],
+    ]);
+    expect(duelVerdict(standings)).toEqual({ kind: "place", place: 2 });
   });
 
-  it("calls equal totals a tie", () => {
-    expect(duelOutcome([round(3000, 3000)]).winner).toBe("tie");
-    expect(duelOutcome([]).winner).toBe("tie");
+  it("calls an outright first place a win, and a shared one a tie", () => {
+    expect(duelVerdict(duelStandings([player(0, 4000, true), player(1, 1000)]))).toEqual({ kind: "win" });
+    expect(duelVerdict(duelStandings([player(0, 4000, true), player(1, 4000)]))).toEqual({ kind: "tie" });
   });
 });

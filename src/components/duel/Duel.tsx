@@ -46,7 +46,7 @@ export function Duel({ code }: { code: string }) {
   if (!mode) throw new Error(`Unknown game mode "${view.modeId}"`);
 
   if (!view.isParticipant) return <DuelJoin view={view} mode={mode} error={error} isBusy={duel.isBusy} onJoin={duel.join} />;
-  if (phase === "lobby") return <DuelWaitingRoom view={view} mode={mode} />;
+  if (phase === "lobby") return <DuelWaitingRoom duel={duel} view={view} mode={mode} />;
   if (phase === "finished") return <DuelSummary view={view} mode={mode} isBusy={duel.isBusy} onRematch={handleRematch} />;
   return <DuelGame duel={duel} view={view} mode={mode} />;
 }

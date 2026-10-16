@@ -4,7 +4,7 @@ import { DuelLobby } from "@/components/duel/DuelLobby";
 
 export const metadata: Metadata = {
   title: "Duel · GAguessr",
-  description: "Affrontez un ami en 1 contre 1 : mêmes sites, même chrono.",
+  description: "Affrontez vos amis, de 2 à 8 joueurs : mêmes sites, même chrono.",
 };
 
 export default function DuelPage() {
@@ -17,8 +17,8 @@ export default function DuelPage() {
       </header>
       <section aria-labelledby="duel-heading" className="mt-12 sm:mt-16">
         <h1 id="duel-heading" className="text-5xl leading-[1.1] font-semibold tracking-[-0.04em] text-balance sm:text-7xl">
-          Un contre{" "}
-          <mark className="rounded-xl bg-accent px-2 leading-none text-accent-ink [box-decoration-break:clone]">un</mark>.
+          Défiez vos{" "}
+          <mark className="rounded-xl bg-accent px-2 leading-none text-accent-ink [box-decoration-break:clone]">amis</mark>.
         </h1>
       </section>
       <DuelLobby />

@@ -9,7 +9,7 @@ type DuelParams = PageProps<"/duel/[code]">["params"];
 
 export const metadata: Metadata = {
   title: "Duel · GAguessr",
-  description: "Vous êtes défié en 1 contre 1 : mêmes sites, même chrono.",
+  description: "Vous êtes invité à un duel : mêmes sites, même chrono.",
   robots: { index: false },
 };
 

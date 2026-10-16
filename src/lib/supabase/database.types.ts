@@ -74,9 +74,11 @@ export type Database = {
           mode_id: string;
           target_ids: string[];
           host_id: string;
-          guest_id: string | null;
+          max_players: number;
           status: "lobby" | "playing" | "finished" | "cancelled";
           round_index: number;
+          round_s: number;
+          grace_s: number;
           round_started_at: string | null;
           round_deadline: string | null;
           version: number;
@@ -90,9 +92,11 @@ export type Database = {
           mode_id: string;
           target_ids: string[];
           host_id: string;
-          guest_id?: string | null;
+          max_players?: number;
           status?: "lobby" | "playing" | "finished" | "cancelled";
           round_index?: number;
+          round_s?: number;
+          grace_s?: number;
           round_started_at?: string | null;
           round_deadline?: string | null;
           version?: number;
@@ -101,6 +105,12 @@ export type Database = {
           finished_at?: string | null;
         };
         Update: Partial<Database["public"]["Tables"]["duels"]["Insert"]>;
+        Relationships: [];
+      };
+      duel_players: {
+        Row: { duel_id: string; user_id: string; seat: number; joined_at: string };
+        Insert: { duel_id: string; user_id: string; seat: number; joined_at?: string };
+        Update: Partial<Database["public"]["Tables"]["duel_players"]["Insert"]>;
         Relationships: [];
       };
       duel_guesses: {
@@ -163,16 +173,29 @@ export type Database = {
         Returns: { games: number; players: number; avg_score: number | null; avg_max_score: number | null }[];
       };
       create_duel: {
-        Args: { p_host: string; p_mode: string; p_targets: string[] };
+        Args: { p_host: string; p_mode: string; p_targets: string[]; p_round_s: number; p_grace_s: number; p_max_players: number };
         Returns: string;
+      };
+      configure_duel: {
+        Args: { p_duel: string; p_user: string; p_targets: string[]; p_round_s: number; p_grace_s: number; p_max_players: number };
+        Returns: undefined;
       };
       join_duel: {
         Args: { p_code: string; p_user: string };
         Returns: undefined;
       };
+      start_duel: {
+        Args: { p_duel: string; p_user: string };
+        Returns: undefined;
+      };
+      leave_duel: {
+        Args: { p_duel: string; p_user: string };
+        Returns: undefined;
+      };
       duel_tick: {
         Args: { p_duel: string };
-        Returns: undefined;
+        /** The database's clock. */
+        Returns: string;
       };
       duel_lock: {
         Args: {

@@ -103,7 +103,7 @@ export default function Home() {
         >
           <span className="min-w-0">
             <span className="text-2xl font-semibold tracking-tight sm:text-4xl">Duel</span>
-            <span className="mt-1 block text-sm text-muted">Défiez un ami sur les mêmes sites : dès qu’il valide, vous n’avez plus que 5 s.</span>
+            <span className="mt-1 block text-sm text-muted">De 2 à 8 joueurs sur les mêmes sites : dès que l’un valide, le chrono s’emballe pour les autres.</span>
           </span>
           <svg
             className="text-muted transition-[translate,color] duration-200 group-hover:translate-x-1 group-hover:text-accent-text"

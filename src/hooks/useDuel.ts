@@ -1,9 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { getDuel, joinDuel, lockDuelGuess, requestRematch } from "@/app/actions/duel";
+import { configureDuel, getDuel, joinDuel, leaveDuel, lockDuelGuess, requestRematch, startDuel } from "@/app/actions/duel";
 import { deriveDuelPhase, revealEndsAt, type DuelPhase } from "@/game/duel/phase";
 import { DUEL_TOLERANCE_MS } from "@/game/duel/rules";
+import type { DuelSettings } from "@/game/duel/settings";
 import type { DuelError, DuelResult, DuelView } from "@/lib/duel/types";
 import type { LonLat } from "@/lib/geo/distance";
 import { browserSupabase } from "@/lib/supabase/browser";
@@ -34,6 +35,12 @@ export interface UseDuel {
   place: (guess: LonLat) => void;
   lock: () => void;
   join: () => Promise<boolean>;
+  /** Changes the lobby's settings (host only, before anyone joins); resolves to whether they were saved. */
+  configure: (settings: DuelSettings) => Promise<boolean>;
+  /** The host starts the lobby before it is full. */
+  start: () => Promise<boolean>;
+  /** Leaves the lobby; for the host, cancels it. */
+  leave: () => Promise<boolean>;
   /** Resolves to the rematch lobby's code, or null if it could not be opened. */
   rematch: () => Promise<string | null>;
 }
@@ -46,18 +53,19 @@ export function useDuel(code: string): UseDuel {
   const [draft, setDraft] = useState<{ round: number; guess: LonLat } | null>(null);
   const [isBusy, setIsBusy] = useState(false);
   const [isResultShown, setIsResultShown] = useState(false);
-  // Answers can come back out of order; only the latest request's counts.
-  const request = useRef(0);
+  // Answers can come back out of order; the freshest one wins. Keeping only the latest request's
+  // answer instead would starve a busy room, where every lock sets off a refresh on every client.
+  const freshest = useRef(-Infinity);
 
   const refresh = useCallback(async () => {
-    const current = ++request.current;
     const sentAt = Date.now();
     const result = await getDuel(code).catch((): DuelResult<{ view: DuelView }> => ({ ok: false, error: "unavailable" }));
-    if (current !== request.current) return;
     if (!result.ok) {
       setError(result.error);
       return;
     }
+    if (result.view.serverNow < freshest.current) return;
+    freshest.current = result.view.serverNow;
     // The server read its clock about halfway through the round trip.
     const offsetMs = result.view.serverNow - (sentAt + Date.now()) / 2;
     setSynced({ view: result.view, offsetMs });
@@ -158,6 +166,33 @@ export function useDuel(code: string): UseDuel {
     }
   }, [code, refresh]);
 
+  const configure = useCallback(
+    async (settings: DuelSettings) => {
+      const result = await configureDuel({ code, settings }).catch((): DuelResult<object> => ({ ok: false, error: "unavailable" }));
+      if (!result.ok) setError(result.error);
+      await refresh();
+      return result.ok;
+    },
+    [code, refresh],
+  );
+
+  const lobbyAction = useCallback(
+    async (action: (code: string) => Promise<DuelResult<object>>) => {
+      setIsBusy(true);
+      try {
+        const result = await action(code).catch((): DuelResult<object> => ({ ok: false, error: "unavailable" }));
+        if (!result.ok) setError(result.error);
+        await refresh();
+        return result.ok;
+      } finally {
+        setIsBusy(false);
+      }
+    },
+    [code, refresh],
+  );
+  const start = useCallback(() => lobbyAction(startDuel), [lobbyAction]);
+  const leave = useCallback(() => lobbyAction(leaveDuel), [lobbyAction]);
+
   const rematch = useCallback(async () => {
     setIsBusy(true);
     try {
@@ -170,5 +205,5 @@ export function useDuel(code: string): UseDuel {
     }
   }, [code]);
 
-  return { view, error, phase, offsetMs, guess, isBusy, showResult, place, lock, join, rematch };
+  return { view, error, phase, offsetMs, guess, isBusy, showResult, place, lock, join, configure, start, leave, rematch };
 }

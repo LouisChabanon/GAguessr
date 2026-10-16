@@ -10,6 +10,15 @@ import { CROWD_SOURCE, REVEAL_SOURCE } from "@/lib/map/style";
 import { createMarkerElement, type MarkerKind } from "./markerElement";
 import { useMaplibre } from "./useMaplibre";
 
+export interface OpponentPin {
+  key: string;
+  point: LonLat;
+  /** Pseudo, shown on hover. */
+  title: string;
+  /** CSS color of the pin. */
+  color: string;
+}
+
 export interface SafeArea {
   top: number;
   bottom: number;
@@ -37,8 +46,8 @@ interface GameMapProps {
   pastResults: readonly RoundResult[];
   /** Where other players put the revealed site, drawn as a heatmap. */
   crowdGuesses?: readonly LonLat[];
-  /** In a duel, the other player's pin for the revealed site; framed with the answer. */
-  opponentGuess?: LonLat | null;
+  /** In a duel, the other players' pins for the revealed site; framed with the answer. */
+  opponentGuesses?: readonly OpponentPin[];
   interactive: boolean;
   onPick: (lonLat: LonLat) => void;
   onConfirm: () => void;
@@ -53,7 +62,9 @@ function prefersReducedMotion(): boolean {
 }
 
 /** Keeps one MapLibre marker per key in sync with `points`. */
-function useMarkers(map: MaplibreMap | null, kind: MarkerKind, points: readonly { key: string; point: LonLat; title?: string }[]) {
+type MarkerPoint = { key: string; point: LonLat; title?: string; color?: string };
+
+function useMarkers(map: MaplibreMap | null, kind: MarkerKind, points: readonly MarkerPoint[]) {
   const markers = useRef(new Map<string, Marker>());
   useEffect(() => {
     if (!map) return;
@@ -68,13 +79,13 @@ function useMarkers(map: MaplibreMap | null, kind: MarkerKind, points: readonly 
           current.delete(key);
         }
       }
-      for (const { key, point, title } of points) {
+      for (const { key, point, title, color } of points) {
         const existing = current.get(key);
         if (existing) {
           existing.setLngLat(toLngLat(point));
           continue;
         }
-        const marker = new maplibregl.Marker({ element: createMarkerElement(kind, title), anchor: kind === "guess" ? "bottom" : "center" })
+        const marker = new maplibregl.Marker({ element: createMarkerElement(kind, title, color), anchor: kind === "guess" ? "bottom" : "center" })
           .setLngLat(toLngLat(point))
           .addTo(map);
         current.set(key, marker);
@@ -94,7 +105,7 @@ function useMarkers(map: MaplibreMap | null, kind: MarkerKind, points: readonly 
   }, [map]);
 }
 
-export function GameMap({ area, roundKey, guess, result, pastResults, crowdGuesses, opponentGuess, interactive, onPick, onConfirm, onReady, getSafeArea }: GameMapProps) {
+export function GameMap({ area, roundKey, guess, result, pastResults, crowdGuesses, opponentGuesses, interactive, onPick, onConfirm, onReady, getSafeArea }: GameMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const padding = useCallback(() => {
     const safe = getSafeArea?.() ?? NO_SAFE_AREA;
@@ -131,8 +142,8 @@ export function GameMap({ area, roundKey, guess, result, pastResults, crowdGuess
     [pastResults],
   );
   const opponentPoints = useMemo(
-    () => (result && opponentGuess ? [{ key: result.target.id, point: opponentGuess }] : []),
-    [result, opponentGuess],
+    () => (result ? (opponentGuesses ?? []).map((pin) => ({ ...pin, key: `${result.target.id}:${pin.key}` })) : []),
+    [result, opponentGuesses],
   );
   useMarkers(map, "guess", guessPoints);
   useMarkers(map, "opponent", opponentPoints);
@@ -183,12 +194,12 @@ export function GameMap({ area, roundKey, guess, result, pastResults, crowdGuess
       duration: prefersReducedMotion() ? 0 : CAMERA_DURATION_MS,
     };
     if (result) {
-      const framed = pointsBounds(opponentGuess ? [result.guess, result.answer, opponentGuess] : [result.guess, result.answer]);
+      const framed = pointsBounds([result.guess, result.answer, ...(opponentGuesses ?? []).map((pin) => pin.point)]);
       map.fitBounds(framed, { ...options, maxZoom: REVEAL_MAX_ZOOM });
     } else {
       map.fitBounds(view.bounds, options);
     }
-  }, [map, result, opponentGuess, padding, view]);
+  }, [map, result, opponentGuesses, padding, view]);
 
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (!map) return;

@@ -1,11 +1,7 @@
 /**
- * Duel timings. The database enforces them (public.duel_rules() in the duels migration); the
- * migration tests check both agree. The client only uses them to display countdowns.
+ * Fixed duel timings. The database enforces them (public.duel_rules() in the duels migration); the
+ * migration tests check both agree. The round and grace times are per duel: see settings.ts.
  */
-/** Longest a round can last. */
-export const DUEL_ROUND_MS = 45_000;
-/** Once one player locks, the other has at most this long left. */
-export const DUEL_GRACE_MS = 5_000;
 /** How long both answers stay on screen before the next round starts. */
 export const DUEL_REVEAL_MS = 8_000;
 /** Countdown between the guest joining and the first round. */

@@ -1,15 +1,22 @@
-import type { DuelRound } from "@/lib/duel/types";
+import type { DuelPlayer } from "@/lib/duel/types";
 
-export interface DuelOutcome {
-  myTotal: number;
-  opponentTotal: number;
-  winner: "me" | "opponent" | "tie";
+export interface Standing {
+  player: DuelPlayer;
+  /** 1 for the best total; equal totals share a place, and the next place is skipped (1, 1, 3). */
+  place: number;
 }
 
-/** Totals so far; the higher total wins. */
-export function duelOutcome(rounds: readonly DuelRound[]): DuelOutcome {
-  const myTotal = rounds.reduce((sum, r) => sum + r.me.score, 0);
-  const opponentTotal = rounds.reduce((sum, r) => sum + r.opponent.score, 0);
-  const winner = myTotal === opponentTotal ? "tie" : myTotal > opponentTotal ? "me" : "opponent";
-  return { myTotal, opponentTotal, winner };
+/** Players from best to worst total. */
+export function duelStandings(players: readonly DuelPlayer[]): Standing[] {
+  const sorted = [...players].sort((a, b) => b.total - a.total || a.seat - b.seat);
+  return sorted.map((player) => ({ player, place: 1 + sorted.filter((p) => p.total > player.total).length }));
+}
+
+export type DuelVerdict = { kind: "win" } | { kind: "tie" } | { kind: "place"; place: number };
+
+/** How the duel went for the viewer: won outright, shared first place, or a lower place. */
+export function duelVerdict(standings: readonly Standing[]): DuelVerdict {
+  const mine = standings.find((s) => s.player.isMe);
+  if (!mine || mine.place > 1) return { kind: "place", place: mine?.place ?? standings.length };
+  return standings.filter((s) => s.place === 1).length > 1 ? { kind: "tie" } : { kind: "win" };
 }

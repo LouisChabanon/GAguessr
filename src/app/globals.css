@@ -18,8 +18,14 @@
   --answer: oklch(62% 0.23 352);
   /* Other players' guesses; matches the map heatmap (palette.ts). */
   --crowd: oklch(48% 0.2 280);
-  /* The other player's pin in a duel. */
+  /* The other players' pins in a duel, by seat order; the viewer is always --accent. */
   --opponent: oklch(56% 0.13 215);
+  --player-2: oklch(55% 0.17 295);
+  --player-3: oklch(58% 0.15 150);
+  --player-4: oklch(60% 0.17 40);
+  --player-5: oklch(55% 0.16 330);
+  --player-6: oklch(52% 0.1 250);
+  --player-7: oklch(56% 0.12 110);
   --great: oklch(62% 0.16 152);
   --good: oklch(72% 0.16 72);
   --poor: oklch(60% 0.2 27);
@@ -54,6 +60,12 @@
     --answer: oklch(72% 0.2 352);
     --crowd: oklch(72% 0.15 285);
     --opponent: oklch(76% 0.12 210);
+    --player-2: oklch(74% 0.14 295);
+    --player-3: oklch(76% 0.14 150);
+    --player-4: oklch(76% 0.14 45);
+    --player-5: oklch(74% 0.14 330);
+    --player-6: oklch(74% 0.09 250);
+    --player-7: oklch(78% 0.12 110);
     --great: oklch(74% 0.16 152);
     --good: oklch(80% 0.15 78);
     --poor: oklch(70% 0.18 27);

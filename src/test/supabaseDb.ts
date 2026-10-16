@@ -18,14 +18,30 @@ const SUPABASE_STUB = `
 
 const MIGRATIONS_DIR = "supabase/migrations";
 
-/** A fresh in-memory Postgres with every migration applied, as on a new Supabase project. */
-export async function createTestDb(): Promise<PGlite> {
+function migrations(): string[] {
+  return readdirSync(MIGRATIONS_DIR).sort();
+}
+
+async function apply(db: PGlite, files: readonly string[]) {
+  for (const file of files) await db.exec(readFileSync(`${MIGRATIONS_DIR}/${file}`, "utf8"));
+}
+
+/**
+ * A fresh in-memory Postgres with every migration applied, as on a new Supabase project.
+ * With `until`, only the migrations up to that file (included): for testing an upgrade.
+ */
+export async function createTestDb({ until }: { until?: string } = {}): Promise<PGlite> {
   const db = new PGlite();
   await db.exec(SUPABASE_STUB);
-  for (const file of readdirSync(MIGRATIONS_DIR).sort()) {
-    await db.exec(readFileSync(`${MIGRATIONS_DIR}/${file}`, "utf8"));
-  }
+  const all = migrations();
+  await apply(db, until === undefined ? all : all.slice(0, all.indexOf(until) + 1));
   return db;
+}
+
+/** Applies the migrations after `after`, as a deploy would on a project that already has it. */
+export async function applyMigrationsAfter(db: PGlite, after: string): Promise<void> {
+  const all = migrations();
+  await apply(db, all.slice(all.indexOf(after) + 1));
 }
 
 /** Runs `fn` as a PostgREST request would: under `role`, with `userId` as the JWT subject. */

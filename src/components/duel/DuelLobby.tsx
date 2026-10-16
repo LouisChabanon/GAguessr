@@ -5,22 +5,26 @@ import { useState, type FormEvent } from "react";
 import { createDuel } from "@/app/actions/duel";
 import { buttonClass } from "@/components/ui/button";
 import { normalizeDuelCode } from "@/game/duel/code";
-import { DUEL_GRACE_MS, DUEL_ROUND_MS } from "@/game/duel/rules";
+import { defaultDuelSettings, type DuelSettings } from "@/game/duel/settings";
+import { useModeTargets } from "@/hooks/useModeTargets";
 import { useOwnPseudo } from "@/hooks/useOwnPseudo";
 import { usePlayerName } from "@/hooks/usePlayerName";
 import { DUEL_ERROR_MESSAGES } from "@/lib/duel/messages";
-import { DEFAULT_MODE, GAME_MODES } from "@/modes/registry";
+import { DEFAULT_MODE, GAME_MODES, getMode } from "@/modes/registry";
+import { DuelSettingsFields } from "./DuelSettingsFields";
 import { PseudoField } from "./PseudoField";
-
-function roundsLabel(roundsPerGame: number | "all"): string {
-  return roundsPerGame === "all" ? "Tous les sites" : `${roundsPerGame} manches`;
-}
 
 /** Start page of duels: open a lobby on a mode, or join a friend's with their code. */
 export function DuelLobby() {
   const router = useRouter();
   const name = usePlayerName(useOwnPseudo());
   const [modeId, setModeId] = useState(DEFAULT_MODE.id);
+  const mode = getMode(modeId) ?? DEFAULT_MODE;
+  const available = useModeTargets(mode)?.size ?? null;
+  // Settings the host touched; the rest follow the mode's defaults, so switching mode keeps a sensible round count.
+  const [chosen, setChosen] = useState<{ modeId: string; settings: DuelSettings } | null>(null);
+  const settings =
+    available === null ? null : chosen?.modeId === modeId ? chosen.settings : defaultDuelSettings(mode, available);
   const [createError, setCreateError] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [code, setCode] = useState("");
@@ -31,8 +35,8 @@ export function DuelLobby() {
     setIsCreating(true);
     setCreateError(null);
     try {
-      if (!(await name.ready())) return;
-      const result = await createDuel(modeId);
+      if (!settings || !(await name.ready())) return;
+      const result = await createDuel({ modeId, settings });
       if (result.ok) router.push(`/duel/${result.code}`);
       else setCreateError(DUEL_ERROR_MESSAGES[result.error]);
     } catch (error: unknown) {
@@ -58,18 +62,18 @@ export function DuelLobby() {
         </h2>
         <fieldset className="mt-2">
           <legend className="sr-only">Mode de jeu</legend>
-          {GAME_MODES.map((mode) => (
+          {GAME_MODES.map((m) => (
             <label
-              key={mode.id}
-              data-checked={modeId === mode.id}
+              key={m.id}
+              data-checked={modeId === m.id}
               className="group -mx-3 flex cursor-pointer items-center gap-4 rounded-xl px-3 py-4 transition-colors duration-150 hover:bg-panel-solid data-[checked=true]:bg-panel-solid data-[checked=true]:shadow-panel"
             >
               <input
                 type="radio"
                 name="mode"
-                value={mode.id}
-                checked={modeId === mode.id}
-                onChange={() => setModeId(mode.id)}
+                value={m.id}
+                checked={modeId === m.id}
+                onChange={() => setModeId(m.id)}
                 className="peer sr-only"
               />
               <span
@@ -78,19 +82,34 @@ export function DuelLobby() {
               >
                 <span className="size-1.5 rounded-full bg-accent-ink opacity-0 transition-opacity duration-150 group-data-[checked=true]:opacity-100" />
               </span>
-              <span className="min-w-0 flex-1 text-xl font-semibold tracking-tight sm:text-2xl">{mode.title}</span>
-              <span className="shrink-0 rounded-full border border-line px-2 py-0.5 text-[11px] font-medium text-muted">
-                {roundsLabel(mode.roundsPerGame)}
-              </span>
+              <span className="min-w-0 flex-1 text-xl font-semibold tracking-tight sm:text-2xl">{m.title}</span>
             </label>
           ))}
         </fieldset>
+
+        <section aria-labelledby="settings-heading" className="mt-8 rounded-2xl border border-line p-4 sm:p-5">
+          <h3 id="settings-heading" className="text-xs font-medium tracking-[0.16em] text-muted uppercase">
+            Réglages
+          </h3>
+          <div className="mt-4 min-h-48">
+            {settings && available !== null ? (
+              <DuelSettingsFields
+                name="create"
+                settings={settings}
+                available={available}
+                onChange={(next) => setChosen({ modeId, settings: next })}
+              />
+            ) : (
+              <p className="animate-pulse text-sm text-muted">Chargement des sites…</p>
+            )}
+          </div>
+        </section>
 
         <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-end">
           <div className="flex-1">
             <PseudoField name={name} id="create-pseudo" />
           </div>
-          <button type="submit" className={buttonClass("primary")} disabled={isCreating || name.draft.isPending}>
+          <button type="submit" className={buttonClass("primary")} disabled={!settings || isCreating || name.draft.isPending}>
             Créer le duel
           </button>
         </div>
@@ -136,26 +155,24 @@ export function DuelLobby() {
           )}
         </form>
 
-        <dl className="mt-10 grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-line bg-line text-sm">
-          <div className="bg-surface p-4">
-            <dt className="text-muted">Par manche</dt>
-            <dd className="mt-1 font-mono text-2xl font-semibold tabular-nums">
-              {DUEL_ROUND_MS / 1000}
-              <span className="ml-0.5 font-sans text-base font-medium text-muted">s</span>
-            </dd>
-          </div>
-          <div className="bg-surface p-4">
-            <dt className="text-muted">Après l’adversaire</dt>
-            <dd className="mt-1 font-mono text-2xl font-semibold text-poor tabular-nums">
-              {DUEL_GRACE_MS / 1000}
-              <span className="ml-0.5 font-sans text-base font-medium">s</span>
-            </dd>
-          </div>
-        </dl>
-        <p className="mt-3 text-sm text-pretty text-muted">
-          Mêmes sites pour les deux joueurs. Dès que l’un valide, l’autre n’a plus que {DUEL_GRACE_MS / 1000} secondes. Le
-          meilleur total l’emporte.
-        </p>
+        <ol className="mt-10 space-y-3 text-sm text-pretty text-muted">
+          <li className="flex gap-3">
+            <span className="font-mono text-xs text-ink tabular-nums">01</span>
+            Jusqu’à {settings?.maxPlayers ?? "…"} joueurs cherchent les mêmes sites, dans le même ordre. La partie démarre quand la salle est pleine, ou quand vous la lancez.
+          </li>
+          <li className="flex gap-3">
+            <span className="font-mono text-xs text-ink tabular-nums">02</span>
+            <span>
+              Chaque manche dure au plus <span className="font-medium text-ink">{settings?.roundSeconds ?? "…"}&nbsp;s</span>. Dès que
+              l’un valide, les autres n’ont plus que{" "}
+              <span className="font-medium text-poor">{settings?.graceSeconds ?? "…"}&nbsp;s</span>.
+            </span>
+          </li>
+          <li className="flex gap-3">
+            <span className="font-mono text-xs text-ink tabular-nums">03</span>
+            Le meilleur total l’emporte.
+          </li>
+        </ol>
       </section>
     </div>
   );

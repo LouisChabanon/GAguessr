@@ -8,7 +8,8 @@ const pinSvg = (fill: string, ink: string) => `<svg width="20" height="28" viewB
 
 const PIN_SVG = {
   guess: pinSvg("var(--accent)", "var(--accent-ink)"),
-  opponent: pinSvg("var(--opponent)", "var(--panel-solid)"),
+  // Each opponent's color comes from the marker's --pin, set by the caller.
+  opponent: pinSvg("var(--pin, var(--opponent))", "var(--panel-solid)"),
 } as const;
 
 const DOT_SVG = {
@@ -22,8 +23,9 @@ const DOT_SVG = {
 } as const;
 
 /** DOM element for a MapLibre marker. Static markup only: no user data goes into innerHTML. */
-export function createMarkerElement(kind: MarkerKind, title?: string): HTMLElement {
+export function createMarkerElement(kind: MarkerKind, title?: string, color?: string): HTMLElement {
   const outer = document.createElement("div");
+  if (color) outer.style.setProperty("--pin", color);
   outer.className = "map-marker";
   outer.dataset.kind = kind;
   outer.setAttribute("data-testid", `marker-${kind}`);
