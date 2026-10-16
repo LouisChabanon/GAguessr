@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import type { RoundResult } from "@/game/evaluate";
 import type { ScoreRecord } from "@/hooks/useBestScore";
@@ -5,6 +7,7 @@ import { buttonClass } from "@/components/ui/button";
 import { ScoreBar } from "@/components/ui/ScoreBar";
 import { formatDistance, formatDuration, formatScore } from "@/lib/format";
 import { MAX_ROUND_SCORE } from "@/lib/geo/scoring";
+import { usePseudoDraft } from "@/hooks/usePseudoDraft";
 import type { SubmissionState } from "@/hooks/useScoreSubmission";
 import type { PseudoResult } from "@/lib/scores/types";
 import { SummaryStanding } from "./SummaryStanding";
@@ -24,6 +27,14 @@ interface GameSummaryProps {
 
 export function GameSummary({ modeId, modeTitle, results, total, timeMs, record, submission, onChoosePseudo, onPlayAgain }: GameSummaryProps) {
   const max = results.length * MAX_ROUND_SCORE;
+  const pseudoDraft = usePseudoDraft(onChoosePseudo);
+  const needsPseudo = submission.status === "done" && !submission.standing.pseudo;
+
+  // A pseudo typed but never validated is saved on the way out rather than lost.
+  const handlePlayAgain = async () => {
+    if (needsPseudo && pseudoDraft.value.trim() && !(await pseudoDraft.save())) return;
+    onPlayAgain();
+  };
 
   return (
     <div className="absolute inset-0 z-20 grid place-items-center overflow-y-auto bg-surface/40 p-4 backdrop-blur-sm">
@@ -41,7 +52,7 @@ export function GameSummary({ modeId, modeTitle, results, total, timeMs, record,
           en <span data-testid="game-time" className="font-medium text-ink tabular-nums">{formatDuration(timeMs)}</span> de recherche
         </p>
         {record && <BestScoreNote record={record} />}
-        <SummaryStanding modeId={modeId} submission={submission} onChoosePseudo={onChoosePseudo} />
+        <SummaryStanding modeId={modeId} submission={submission} pseudoDraft={pseudoDraft} />
 
         <ol className="mt-6 divide-y divide-line border-y border-line">
           {results.map((r, i) => (
@@ -66,7 +77,7 @@ export function GameSummary({ modeId, modeTitle, results, total, timeMs, record,
           <Link href={`/classement/${modeId}`} className={buttonClass("ghost", "h-11")}>
             Classement
           </Link>
-          <button type="button" autoFocus className={buttonClass("primary")} onClick={onPlayAgain}>
+          <button type="button" autoFocus={!needsPseudo} className={buttonClass(needsPseudo ? "secondary" : "primary")} disabled={pseudoDraft.isPending} onClick={handlePlayAgain}>
             Rejouer
           </button>
         </div>

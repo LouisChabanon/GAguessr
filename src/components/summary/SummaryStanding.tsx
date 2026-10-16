@@ -1,17 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useId, useState, type FormEvent } from "react";
+import { useId, type FormEvent } from "react";
 import { buttonClass } from "@/components/ui/button";
+import type { PseudoDraft } from "@/hooks/usePseudoDraft";
 import type { SubmissionState } from "@/hooks/useScoreSubmission";
 import { formatPercent, formatRank } from "@/lib/format";
 import { PSEUDO_MAX } from "@/lib/scores/pseudo";
-import type { GameStanding, PseudoResult } from "@/lib/scores/types";
+import type { GameStanding } from "@/lib/scores/types";
 
 interface SummaryStandingProps {
   modeId: string;
   submission: SubmissionState;
-  onChoosePseudo: (pseudo: string) => Promise<PseudoResult>;
+  pseudoDraft: PseudoDraft;
 }
 
 const ERROR_NOTES: Readonly<Record<Exclude<SubmissionState, { status: "idle" | "pending" | "done" }>["error"], string>> = {
@@ -22,7 +23,7 @@ const ERROR_NOTES: Readonly<Record<Exclude<SubmissionState, { status: "idle" | "
 };
 
 /** How the game ranks against everyone else's; never blocks the summary. */
-export function SummaryStanding({ modeId, submission, onChoosePseudo }: SummaryStandingProps) {
+export function SummaryStanding({ modeId, submission, pseudoDraft }: SummaryStandingProps) {
   if (submission.status === "idle") return null;
   if (submission.status === "pending") {
     return (
@@ -38,13 +39,13 @@ export function SummaryStanding({ modeId, submission, onChoosePseudo }: SummaryS
       </p>
     );
   }
-  return <Standing modeId={modeId} standing={submission.standing} onChoosePseudo={onChoosePseudo} />;
+  return <Standing modeId={modeId} standing={submission.standing} pseudoDraft={pseudoDraft} />;
 }
 
-function Standing({ modeId, standing, onChoosePseudo }: { modeId: string; standing: GameStanding; onChoosePseudo: SummaryStandingProps["onChoosePseudo"] }) {
+function Standing({ modeId, standing, pseudoDraft }: { modeId: string; standing: GameStanding; pseudoDraft: PseudoDraft }) {
   const isFirstGame = standing.games <= 1;
   return (
-    <div className="enter-up mt-5 rounded-2xl border border-line p-4" data-testid="standing">
+    <div className={`enter-up mt-5 rounded-2xl border p-4 ${standing.pseudo ? "border-line" : "border-accent bg-accent/10"}`} data-testid="standing">
       <p className="text-sm">
         {isFirstGame ? (
           "Première partie enregistrée sur ce mode."
@@ -63,49 +64,48 @@ function Standing({ modeId, standing, onChoosePseudo }: { modeId: string; standi
           </>
         )}
       </p>
-      {!standing.pseudo && <PseudoForm rank={standing.rank} onChoosePseudo={onChoosePseudo} />}
+      {!standing.pseudo && <PseudoForm rank={standing.rank} draft={pseudoDraft} />}
     </div>
   );
 }
 
-function PseudoForm({ rank, onChoosePseudo }: { rank: number; onChoosePseudo: SummaryStandingProps["onChoosePseudo"] }) {
+function PseudoForm({ rank, draft }: { rank: number; draft: PseudoDraft }) {
   const inputId = useId();
   const errorId = useId();
-  const [error, setError] = useState<string | null>(null);
-  const [isPending, setIsPending] = useState(false);
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const pseudo = String(new FormData(event.currentTarget).get("pseudo") ?? "");
-    setIsPending(true);
-    const result = await onChoosePseudo(pseudo);
-    setIsPending(false);
-    setError(result.ok ? null : (result.message ?? "Impossible d’enregistrer ce pseudo, réessayez."));
+    void draft.save();
   };
 
   return (
-    <form className="mt-3" onSubmit={handleSubmit} data-testid="pseudo-form">
-      <label htmlFor={inputId} className="text-xs text-muted">
-        Choisissez un pseudo pour entrer au classement, en <span className="font-medium text-ink">{formatRank(rank)}</span> position
+    <form className="mt-3 border-t border-line pt-3" onSubmit={handleSubmit} data-testid="pseudo-form">
+      <label htmlFor={inputId} className="text-sm font-medium">
+        Choisissez un pseudo pour entrer au classement en <span className="text-accent-text">{formatRank(rank)}</span> position
       </label>
-      <div className="mt-1.5 flex gap-2">
+      <p className="mt-0.5 text-xs text-muted">Vos parties précédentes y apparaîtront aussi.</p>
+      <div className="mt-2 flex gap-2">
         <input
           id={inputId}
           name="pseudo"
           required
+          autoFocus
           maxLength={PSEUDO_MAX}
           autoComplete="nickname"
-          aria-invalid={error !== null}
-          aria-describedby={error ? errorId : undefined}
+          placeholder="Votre pseudo"
+          value={draft.value}
+          onChange={(event) => draft.setValue(event.target.value)}
+          aria-invalid={draft.error !== null}
+          aria-describedby={draft.error ? errorId : undefined}
           className="h-11 min-w-0 flex-1 rounded-xl border border-line bg-surface px-3 text-sm transition-[border-color,box-shadow] duration-150 outline-none focus:border-accent focus:ring-2 focus:ring-accent/40"
         />
-        <button type="submit" className={buttonClass("secondary")} disabled={isPending}>
+        <button type="submit" className={buttonClass("primary")} disabled={draft.isPending}>
           Valider
         </button>
       </div>
-      {error && (
+      {draft.error && (
         <p id={errorId} role="alert" className="mt-1.5 text-xs text-poor">
-          {error}
+          {draft.error}
         </p>
       )}
     </form>
